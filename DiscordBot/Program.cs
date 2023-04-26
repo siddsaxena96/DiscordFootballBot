@@ -29,12 +29,12 @@ namespace DiscordBot
         static async Task DoWork()
         {
             // Do your work here
-            Console.WriteLine($"DoWork started at { BotCommandLogic.FormatTimeToIST(DateTime.Now)}");
+            Console.WriteLine($"DoWork started at { BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
 
             // Simulate some async work
             await _botController.RoutineCheckUpcomingMatches();
 
-            Console.WriteLine($"DoWork completed at {BotCommandLogic.FormatTimeToIST(DateTime.Now)}");
+            Console.WriteLine($"DoWork completed at {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
         }
     }
 }

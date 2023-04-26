@@ -53,8 +53,7 @@ namespace DiscordBot
         }
         private async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
         {
-            string message = "";
-            string url = $"http://api.football-data.org//v4/teams/{sub.teamId}/matches?dateFrom={currentDate}&dateTo={nextDateString}";
+            string url = $"http://api.football-data.org//v4/teams/{sub.teamId}/matches?status=SCHEDULED&dateFrom={currentDate}&dateTo={nextDateString}";
             string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
             if (string.IsNullOrEmpty(response)) return;
             try
@@ -65,23 +64,13 @@ namespace DiscordBot
                     bool remind = false;
                     TimeSpan timeDifference = match.utcDate - DateTime.UtcNow;
                     Console.WriteLine($"{match.homeTeam.name} vs {match.awayTeam.name} - {timeDifference.TotalHours}");
-                    if (timeDifference.TotalHours < 24 && timeDifference.TotalHours >= 23.5)
-                    {
-                        remind = true;
-                    }
-                    else if (timeDifference.TotalHours < 12 && timeDifference.TotalHours >= 11.5)
-                    {
-                        remind = true;
-                    }
-                    else if (timeDifference.TotalHours < 1)
-                    {
-                        remind = true;
-                    }
+                    
+                    remind = timeDifference.TotalHours is < 24 and >= 23.5
+                        || timeDifference.TotalHours is < 12 and >= 11.5
+                        || timeDifference.TotalHours is < 1 and > 0;                    
 
-                    if (!remind)
-                    {
-                        continue;
-                    }
+                    if (!remind) continue; 
+
                     DiscordEmbedBuilder embedMessage = new()
                     {
                         Title = $"{match.homeTeam.name} VS {match.awayTeam.name}",
@@ -130,8 +119,8 @@ namespace DiscordBot
             string message = string.Empty;
 
             _tableData.Clear();
-            if(competitionCode!="SA")
-            _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts", "Last 5" });
+            if (competitionCode != "SA")
+                _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts", "Last 5" });
             else
                 _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts" });
             stringsToSendBack.Clear();
@@ -205,8 +194,8 @@ namespace DiscordBot
             }
 
             stringsToSendBack.Add(message);
-            
-            return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToIST(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToIST(competitionStandings.season.endDate)}|\n";            
+
+            return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToIST(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToIST(competitionStandings.season.endDate)}|\n";
         }
         public async static Task GetSubscriptions(List<SubscriptionDetails> subscriptions)
         {

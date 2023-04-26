@@ -130,14 +130,20 @@ namespace DiscordBot
             string message = string.Empty;
 
             _tableData.Clear();
+            if(competitionCode!="SA")
             _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts", "Last 5" });
+            else
+                _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts" });
             stringsToSendBack.Clear();
 
             var competitionTable = competitionStandings.standings[0].table;
 
             foreach (var entry in competitionTable)
             {
-                _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form });
+                if (competitionCode != "SA")
+                    _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form });
+                else
+                    _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points });
             }
             var numColumns = _tableData[0].Count;
             var columnWidths = new int[numColumns];

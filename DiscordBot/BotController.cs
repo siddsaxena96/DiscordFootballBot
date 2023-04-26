@@ -4,6 +4,8 @@ using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
+using DSharpPlus.SlashCommands;
+using DSharpPlus.SlashCommands.EventArgs;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -67,9 +69,29 @@ namespace DiscordBot
 
             _commands = _client.UseCommandsNext(commandsConfig);
             _commands.RegisterCommands<Commands>();
-
+            
+            var slashCommandsConfig = _client.UseSlashCommands();
+            slashCommandsConfig.RegisterCommands<SlashCommands>(700563290153156608);            
+            slashCommandsConfig.AutocompleteErrored += AutoCompleteErr;
+            slashCommandsConfig.SlashCommandErrored += SlashErr;
             await _client.ConnectAsync();            
         }
+
+        private Task SlashErr(SlashCommandsExtension sender, SlashCommandErrorEventArgs args)
+        {
+            Console.WriteLine(args.Context);
+            Console.WriteLine(args.Exception);
+
+            throw new Exception();
+        }
+
+        private Task AutoCompleteErr(SlashCommandsExtension sender, AutocompleteErrorEventArgs args)
+        {           
+            Console.WriteLine(args.Exception);
+            Console.WriteLine(args.Context.OptionValue);
+            throw new Exception();
+        }
+
         public async Task RoutineCheckUpcomingMatches()
         {
             List<DiscordEmbed> matchReminders = new List<DiscordEmbed>();

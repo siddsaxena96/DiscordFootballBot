@@ -12,18 +12,12 @@ namespace DiscordBot
 {
     public class Commands : BaseCommandModule
     {
-        [Command("test")]
-        public async Task TestCommand(CommandContext ctx)
+        [Command("ping")]
+        public async Task PingCommand(CommandContext ctx)
         {
             await ctx.Channel.SendMessageAsync("Skynet is Real");
         }
-
-        [Command("add")]
-        public async Task AddCommand(CommandContext ctx, int a, int b)
-        {
-            await (ctx.Channel.SendMessageAsync((a + b).ToString()));
-        }
-
+        
         [Command("SubscribeToTeam")]
         public async Task SubscribeToTeam(CommandContext ctx, string teamName, string competitionCode)
         {

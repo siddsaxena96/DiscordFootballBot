@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DSharpPlus.SlashCommands;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,19 @@ namespace DiscordBot
             this.teamId = teamId;
             this.teamName = teamName;
         }
+    }
+    public enum LeagueOptions
+    {
+        [ChoiceName("English Premier Leage")]
+        PL,
+        [ChoiceName("La Liga")]
+        PD,
+        [ChoiceName("Bundesliga")]
+        BL1,
+        [ChoiceName("Serie A")]
+        SA,
+        [ChoiceName("Ligue 1")]
+        FL1
     }
     #region Responses 
     public class CompetitionTeamsResponse

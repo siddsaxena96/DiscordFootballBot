@@ -44,7 +44,7 @@ namespace DiscordBot
             }
             return "Sorry, could not find the team";
         }
-        private async static Task GetSubscriptions(List<SubscriptionDetails> subscriptions)
+        public async static Task GetSubscriptions(List<SubscriptionDetails> subscriptions)
         {
             subscriptions.Clear();
             using (FileStream fs = new FileStream(subscriptionFileLocation, FileMode.Open))

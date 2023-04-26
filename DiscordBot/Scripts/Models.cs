@@ -46,6 +46,15 @@ namespace DiscordBot
         public ResultSet resultSet { get; set; }
         public List<Match> matches { get; set; }
     }
+
+    public class CompetitionStandingsResponse
+    {
+        public FiltersTeamResponse filters { get; set; }
+        public Area area { get; set; }
+        public Competition competition { get; set; }
+        public Season season { get; set; }
+        public List<Standing> standings { get; set; }
+    }
     #endregion
     public class Area
     {
@@ -103,7 +112,28 @@ namespace DiscordBot
         public int currentMatchday { get; set; }
         public object winner { get; set; }
     }
+    public class Standing
+    {
+        public string stage { get; set; }
+        public string type { get; set; }
+        public object group { get; set; }
+        public List<Table> table { get; set; }
+    }
 
+    public class Table
+    {
+        public string position { get; set; }
+        public TeamStanding team { get; set; }
+        public string playedGames { get; set; }
+        public string form { get; set; }
+        public string won { get; set; }
+        public string draw { get; set; }
+        public string lost { get; set; }
+        public string points { get; set; }
+        public string goalsFor { get; set; }
+        public string goalsAgainst { get; set; }
+        public string goalDifference { get; set; }
+    }
     public class Squad
     {
         public int id { get; set; }
@@ -112,7 +142,14 @@ namespace DiscordBot
         public string dateOfBirth { get; set; }
         public string nationality { get; set; }
     }
-
+    public class TeamStanding
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public string shortName { get; set; }
+        public string tla { get; set; }
+        public string crest { get; set; }
+    }
     public class Team
     {
         public Area area { get; set; }
@@ -140,7 +177,7 @@ namespace DiscordBot
         public string tla { get; set; }
         public string crest { get; set; }
     }
-    
+
     public class FiltersMatchResponse
     {
         public string dateFrom { get; set; }
@@ -221,5 +258,5 @@ namespace DiscordBot
         public string duration { get; set; }
         public FullTime fullTime { get; set; }
         public HalfTime halfTime { get; set; }
-    }   
+    }
 }

@@ -28,8 +28,11 @@ namespace DiscordBot
             [JsonProperty("apitoken")]
             public string APIToken { get; private set; }
             
+            [JsonProperty("serverid")]
+            public ulong ServerId { get;private set; }
+            
             [JsonProperty("footychannelid")]
-            public ulong footyChannelId { get;private set; }  
+            public ulong FootyChannelId { get;private set; }  
         }
      
         public DiscordClient _client { get; private set; }
@@ -71,7 +74,7 @@ namespace DiscordBot
             _commands.RegisterCommands<Commands>();
             
             var slashCommandsConfig = _client.UseSlashCommands();
-            slashCommandsConfig.RegisterCommands<SlashCommands>(700563290153156608);            
+            slashCommandsConfig.RegisterCommands<SlashCommands>(configuration.ServerId);            
             slashCommandsConfig.AutocompleteErrored += AutoCompleteErr;
             slashCommandsConfig.SlashCommandErrored += SlashErr;
             await _client.ConnectAsync();            
@@ -98,7 +101,7 @@ namespace DiscordBot
             await BotCommandLogic.RoutineCheckUpcomingMatches(matchReminders);
             if (matchReminders.Count > 0)
             {
-                DiscordChannel channel = await _client.GetChannelAsync(configuration.footyChannelId);
+                DiscordChannel channel = await _client.GetChannelAsync(configuration.FootyChannelId);
                 foreach (var embedMessage in matchReminders)
                 {
                     await channel.SendMessageAsync(embed: embedMessage);

@@ -12,45 +12,78 @@ namespace DiscordBot
     public class SlashCommands : ApplicationCommandModule
     {
         [SlashCommand("Subscribe_To_Team", "Subscribe to fixture reminders of a team")]
-        public async Task SubscribeToTeam(InteractionContext interactionContext,
-            [Option("League", "Select League")] LeagueOptions selectedLeague, [Option("TeamName", "Team Name")] string teamName)
+        public async Task SubscribeToTeam(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague,
+            [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))]
+            [Option("Team", "SelectTeam", true)] long teamId)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
 
-            var response = await BotCommandLogic.SubscribeTo(teamName, selectedLeague.ToString());
+            string response = string.Empty;
+            if (teamId == -1)
+            {
+                response = "Sorry Unable to Fetch teams at this time";
+            }
+            else
+            {
+                response = await BotCommandLogic.SubscribeTo(teamId);
+            }
 
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
 
         [SlashCommand("Show_Scheduled", "Show all scheduled fixtures for a subscribed team")]
         public async Task ShowScheduled(InteractionContext interactionContext,
-            [Autocomplete(typeof(AutoCompleteProvider))]
-            [Option("Team", "SelectTeam", true)] long s)
+            [Autocomplete(typeof(FetchSubscribedTeamsAutoComplete))]
+            [Option("Team", "SelectTeam", true)] long teamId)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             string response = "";
-            if (s == -1)
+            if (teamId == -1)
             {
                 response = "Sorry, it seems you have no subscriptions";
+            }
+            else
+            {
+                response = await BotCommandLogic.GetAllScheduledFixturesForTeam(teamId);
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
 
-        [SlashCommand("delete", "delete a reminder based on its id")]
-        public async Task DeleteById
-        (
-            InteractionContext ctx,
-            [Autocomplete(typeof(ReminderAutoCompletion))]
-            [Option("id", "id of the given reminder which should be deleted", true)]
-            long id
-        )
+        [SlashCommand("Show_Upcoming", "Show next scheduled fixtures for a subscribed team")]
+        public async Task ShowUpcoming(InteractionContext interactionContext,
+            [Autocomplete(typeof(FetchSubscribedTeamsAutoComplete))]
+            [Option("Team", "SelectTeam", true)] long teamId)
         {
-            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
-            new DiscordInteractionResponseBuilder().WithContent("Success!"));
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+
+            string response = "";
+            if (teamId == -1)
+            {
+                response = "Sorry, it seems you have no subscriptions";
+            }
+            else
+            {
+                response = await BotCommandLogic.GetUpcomingFixtureForTeam(teamId);
+            }
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
+        }
+
+        [SlashCommand("Show_Standings", "Show current standings of the selected league")]
+        public async Task ShowStandings(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague)
+        {
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+            List<string> responseStrings = new List<string>(3);
+            string response = await BotCommandLogic.GetStandingsForCompetition(selectedLeague.ToString(), responseStrings);
+            Console.WriteLine(response);
+            foreach(var responseString in responseStrings)
+            {
+                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
+            }
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
     }
 
-    public class AutoCompleteProvider : IAutocompleteProvider
+    public class FetchSubscribedTeamsAutoComplete : IAutocompleteProvider
     {
         public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
@@ -60,28 +93,35 @@ namespace DiscordBot
             Console.WriteLine($"Sub count = {subscriptions.Count}");
             if (subscriptions.Count == 0)
             {
-                return new List<DiscordAutoCompleteChoice>() { new DiscordAutoCompleteChoice("No Subscriptions", "-1") };
+                return new List<DiscordAutoCompleteChoice>() { new DiscordAutoCompleteChoice("No Subscriptions", -1) };
             }
             List<DiscordAutoCompleteChoice> choices = new(subscriptions.Count);
             foreach (var sub in subscriptions)
             {
-                choices.Add(new DiscordAutoCompleteChoice(sub.teamName, sub.teamId.ToString()));
+                choices.Add(new DiscordAutoCompleteChoice(sub.teamName, sub.teamId));
             }
             return choices;
         }
     }
-    public class ReminderAutoCompletion : IAutocompleteProvider
+
+    public class FetchCompetitionTeamsAutoComplete : IAutocompleteProvider
     {
         public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
-            //var factory = ctx.Services.GetRequiredService<IDbContextFactory<MadsContext>>();
-            //await using var db = await factory.CreateDbContextAsync();
-            //return db.Reminders.Where(x => x.UserId == ctx.User.Id).Select(x => new DiscordAutoCompleteChoice(x.Id.ToString(), x.Id.ToString()));
-            var test = new List<DiscordAutoCompleteChoice>();
-            test.Add(new DiscordAutoCompleteChoice("test", 1));
-            test.Add(new DiscordAutoCompleteChoice("test2", 2));
-            test.Add(new DiscordAutoCompleteChoice("test3", 3));
-            return test;
+            var competitionTeams = await BotCommandLogic.GetTeamsFromCompetition(ctx.Options[0].Value.ToString());
+            if (competitionTeams == null)
+            {
+                return new List<DiscordAutoCompleteChoice>() { new DiscordAutoCompleteChoice("Sorry, Unable to Fetch Teams", -1) };
+            }
+            else
+            {
+                List<DiscordAutoCompleteChoice> choices = new List<DiscordAutoCompleteChoice>(competitionTeams.teams.Count);
+                foreach (var team in competitionTeams.teams)
+                {
+                    choices.Add(new DiscordAutoCompleteChoice(team.name, team.id));
+                }
+                return choices;
+            }
         }
     }
 }

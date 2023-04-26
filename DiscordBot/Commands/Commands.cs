@@ -16,31 +16,6 @@ namespace DiscordBot
         public async Task PingCommand(CommandContext ctx)
         {
             await ctx.Channel.SendMessageAsync("Skynet is Real");
-        }
-        
-        [Command("SubscribeToTeam")]
-        public async Task SubscribeToTeam(CommandContext ctx, string teamName, string competitionCode)
-        {
-            string response = await BotCommandLogic.SubscribeTo(teamName, competitionCode);
-            if (!string.IsNullOrEmpty(response))
-            {
-                var msg = await new DiscordMessageBuilder()
-                .WithContent(response)
-                .SendAsync(ctx.Channel);
-            }
-        }
-
-        [Command("ShowScheduled")]
-        public async Task ShowScheduledMatchesForSubscribedTeams(CommandContext ctx, string teamName = null)
-        {
-            string response = await BotCommandLogic.ShowScheduledMatchesForSubscribedTeams(teamName);
-            if (string.IsNullOrEmpty(response))
-            {
-                response = $"Sorry, It seems you are not subscribed to {teamName}";
-            }
-            var msg = await new DiscordMessageBuilder()
-                .WithContent(response)
-                .SendAsync(ctx.Channel);
-        }
+        }              
     }
 }

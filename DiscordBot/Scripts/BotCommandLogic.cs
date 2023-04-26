@@ -15,48 +15,26 @@ namespace DiscordBot
 {
     public static class BotCommandLogic
     {
+        private static Dictionary<int, Team> _teamsCache = new(20);
         private static List<SubscriptionDetails> _subscriptions = new(5);
-        private static List<(string, string)> _parametersToSend = new(2);
+        private static List<List<string>> _tableData = new(5);
+        private static List<string> _tempStringList = new(5);
         private static string subscriptionFileLocation = "./subscription.json";
 
-        public async static Task<string> SubscribeTo(string teamName, string competitionCode)
+        public async static Task<string> SubscribeTo(long teamId)
         {
-            string url = $"http://api.football-data.org/v4/competitions/{competitionCode}/teams";
-            string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
-            if (!string.IsNullOrEmpty(response))
+            if (!_teamsCache.TryGetValue((int)teamId, out Team team))
             {
-                var competitionTeams = JsonConvert.DeserializeObject<CompetitionTeamsResponse>(response);
-                foreach (var team in competitionTeams.teams)
-                {
-                    if (team.name.Contains(teamName))
-                    {
-                        bool result = await UpdateSubscriptionList(team.id, team.name);
-                        if (result)
-                        {
-                            return $"Congratulations ! You are now subscribed to {team.name}";
-                        }
-                        else
-                        {
-                            return $"You are already subscribed to {team.name}";
-                        }
-                    }
-                }
+                return "Sorry, unable to subscibe to the team";
             }
-            return "Sorry, could not find the team";
-        }
-        public async static Task GetSubscriptions(List<SubscriptionDetails> subscriptions)
-        {
-            subscriptions.Clear();
-            using (FileStream fs = new FileStream(subscriptionFileLocation, FileMode.Open))
-            using (StreamReader sr = new StreamReader(fs))
+            bool result = await UpdateSubscriptionList(team.id, team.name);
+            if (result)
             {
-                string jsonString = await sr.ReadToEndAsync();
-                if (!string.IsNullOrEmpty(jsonString))
-                {
-                    subscriptions.AddRange(JsonConvert.DeserializeObject<List<SubscriptionDetails>>(jsonString));
-                }
-                sr.Close();
-                fs.Close();                
+                return $"Congratulations ! You are now subscribed to {team.name}";
+            }
+            else
+            {
+                return $"You are already subscribed to {team.name}";
             }
         }
         public async static Task RoutineCheckUpcomingMatches(List<DiscordEmbed> matchReminders)
@@ -73,7 +51,6 @@ namespace DiscordBot
                 await CheckForUpcomingMatch(sub, currentDate, nextDateString, matchReminders);
             }
         }
-
         private async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
         {
             string message = "";
@@ -86,7 +63,7 @@ namespace DiscordBot
                 foreach (var match in fixtureList.matches)
                 {
                     bool remind = false;
-                    TimeSpan timeDifference = match.utcDate- DateTime.UtcNow;
+                    TimeSpan timeDifference = match.utcDate - DateTime.UtcNow;
                     Console.WriteLine($"{match.homeTeam.name} vs {match.awayTeam.name} - {timeDifference.TotalHours}");
                     if (timeDifference.TotalHours < 24 && timeDifference.TotalHours >= 23.5)
                     {
@@ -100,7 +77,7 @@ namespace DiscordBot
                     {
                         remind = true;
                     }
-                    
+
                     if (!remind)
                     {
                         continue;
@@ -119,35 +96,141 @@ namespace DiscordBot
             }
         }
 
-        public async static Task<string> ShowScheduledMatchesForSubscribedTeams(string teamName)
+        public async static Task<CompetitionTeamsResponse> GetTeamsFromCompetition(string competitionCode)
         {
-            string message = "";
-            await GetSubscriptions(_subscriptions);
-            Console.WriteLine(_subscriptions.Count);
-            if (_subscriptions.Count > 0)
+            string url = $"http://api.football-data.org/v4/competitions/{competitionCode}/teams";
+            string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
+
+            if (!string.IsNullOrEmpty(response))
             {
-                foreach (var sub in _subscriptions)
+                var competitionTeams = JsonConvert.DeserializeObject<CompetitionTeamsResponse>(response);
+                foreach (var team in competitionTeams.teams)
                 {
-                    if (teamName != null && !sub.teamName.Contains(teamName)) continue;
-                    message += $"**Scheduled Matches For {sub.teamName} :** \n\n";
-                    message += await GetAllScheduledFixturesForTeam(sub.teamId);
+                    if (!_teamsCache.ContainsKey(team.id))
+                    {
+                        _teamsCache.Add(team.id, team);
+                    }
                 }
+                return competitionTeams;
             }
             else
             {
-                message = "No matches found";
+                return null;
+            }
+        }
+        public async static Task<string> GetStandingsForCompetition(string competitionCode, List<string> stringsToSendBack)
+        {
+            string url = $"http://api.football-data.org/v4/competitions/{competitionCode}/standings";
+            string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
+            if (string.IsNullOrEmpty(response))
+            {
+                return "Sorry, Unable to fetch standings";
+            }
+            var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(response);
+            string message = string.Empty;
+
+            _tableData.Clear();
+            _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts", "Last 5" });
+            stringsToSendBack.Clear();
+
+            var competitionTable = competitionStandings.standings[0].table;
+
+            foreach (var entry in competitionTable)
+            {
+                _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form });
+            }
+            var numColumns = _tableData[0].Count;
+            var columnWidths = new int[numColumns];
+
+            // Determine the number of rows and columns in the table data
+            int numRows = _tableData.Count;
+            int numCols = _tableData[0].Count;
+
+            // Determine the maximum width of each column
+            int[] colWidths = new int[numCols];
+            for (int col = 0; col < numCols; col++)
+            {
+                int maxColWidth = 0;
+                for (int row = 0; row < numRows; row++)
+                {
+                    int cellWidth = _tableData[row][col].Length;
+                    if (cellWidth > maxColWidth)
+                    {
+                        maxColWidth = cellWidth;
+                    }
+                }
+                colWidths[col] = maxColWidth;
             }
 
-            return message;
+            // Set up table header
+            message += "+";
+            for (int col = 0; col < numCols; col++)
+            {
+                message += (new string('-', colWidths[col]) + "+");
+            }
+            message += "\n";
+            int rowCounter = 0;
+            // Set up table body
+            for (int row = 0; row < numRows; row++)
+            {
+                message += ("|");
+                for (int col = 0; col < numCols; col++)
+                {
+                    string cellValue = _tableData[row][col];
+                    message += cellValue;
+                    message += new string('\u0020', colWidths[col] - cellValue.Length) + "|";
+                    //message += ("\u0020" + cellValue.PadRight(colWidths[col]) + "\u0020|");
+                }
+                message += "\n";
+
+                // Set up separator between rows
+                message += ("+");
+                for (int col = 0; col < numCols; col++)
+                {
+                    message += (new string('-', colWidths[col]) + "+");
+                }
+                message += "\n";
+                rowCounter++;
+                if (message.Length >= 1500)
+                {
+                    stringsToSendBack.Add(message);
+                    message = "";
+                }
+            }
+
+            stringsToSendBack.Add(message);
+            
+            return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToIST(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToIST(competitionStandings.season.endDate)}|\n";            
         }
-        public async static Task<string> GetAllScheduledFixturesForTeam(int teamId)
+        public async static Task GetSubscriptions(List<SubscriptionDetails> subscriptions)
+        {
+            subscriptions.Clear();
+            using (FileStream fs = new FileStream(subscriptionFileLocation, FileMode.Open))
+            using (StreamReader sr = new StreamReader(fs))
+            {
+                string jsonString = await sr.ReadToEndAsync();
+                if (!string.IsNullOrEmpty(jsonString))
+                {
+                    subscriptions.AddRange(JsonConvert.DeserializeObject<List<SubscriptionDetails>>(jsonString));
+                }
+                sr.Close();
+                fs.Close();
+            }
+        }
+        public async static Task<string> GetAllScheduledFixturesForTeam(long teamId)
         {
             string message = "";
             string url = $"http://api.football-data.org//v4/teams/{teamId}/matches?status=SCHEDULED";
             string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
+            if (string.IsNullOrEmpty(response))
+            {
+                return "Sorry, Unable to fetch next fixture";
+            }
             try
             {
                 var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
+                if (fixtureList.matches.Count == 0)
+                    return "Team has no upcoming matches";
                 foreach (var match in fixtureList.matches)
                 {
                     message += $"**{match.homeTeam.name} VS {match.awayTeam.name}**\n\t{match.competition.name}\n\t{FormatTimeToIST(match.utcDate)}\n\n";
@@ -155,18 +238,45 @@ namespace DiscordBot
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GEGEG{ex.Message}");
+                Console.WriteLine($"Error in Getting Scheduled Match {ex.Message}");
             }
             return message;
         }
+        public async static Task<string> GetUpcomingFixtureForTeam(long teamId)
+        {
+            string message = "";
+            string url = $"http://api.football-data.org//v4/teams/{teamId}/matches?status=SCHEDULED";
+            string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
+            if (string.IsNullOrEmpty(response))
+            {
+                return "Sorry, Unable to fetch next fixture";
+            }
+            try
+            {
+                var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
+                if (fixtureList.matches.Count == 0)
+                    return "Team has no upcoming matches";
+                var match = fixtureList.matches[0];
+                message = $"**{match.homeTeam.name} VS {match.awayTeam.name}**\n\t{match.competition.name}\n\t{FormatTimeToIST(match.utcDate)}\n\n";
 
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in Getting Scheduled Match {ex.Message}");
+            }
+            return message;
+        }
         private static string FormatTimeToIST(DateTime utcDate)
         {
             TimeZoneInfo istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
             DateTime istDateTime = TimeZoneInfo.ConvertTimeFromUtc(utcDate, istTimeZone);
             return istDateTime.ToString("dd/MM/yyyy \n\tHH:mm") + " Hrs";
         }
-
+        private static string FormatStringToIST(string yyyymmdd)
+        {
+            DateTime date = DateTime.ParseExact(yyyymmdd, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return date.ToString("dd-MM-yyyy");
+        }
         private async static Task<bool> UpdateSubscriptionList(int teamId, string teamName)
         {
             await GetSubscriptions(_subscriptions);

@@ -35,21 +35,7 @@ namespace DiscordBot
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
-        [Serializable]
-        public class ReminderAutoCompletion : IAutocompleteProvider
-        {
-            public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
-            {
-                //var factory = ctx.Services.GetRequiredService<IDbContextFactory<MadsContext>>();
-                //await using var db = await factory.CreateDbContextAsync();
-                //return db.Reminders.Where(x => x.UserId == ctx.User.Id).Select(x => new DiscordAutoCompleteChoice(x.Id.ToString(), x.Id.ToString()));
-                var test = new List<DiscordAutoCompleteChoice>();
-                test.Add(new DiscordAutoCompleteChoice("test", 1));
-                test.Add(new DiscordAutoCompleteChoice("test2", 2));
-                test.Add(new DiscordAutoCompleteChoice("test3", 3));
-                return test;
-            }
-        }
+
         [SlashCommand("delete", "delete a reminder based on its id")]
         public async Task DeleteById
         (
@@ -68,10 +54,10 @@ namespace DiscordBot
     {
         public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
-            Console.WriteLine("SGSGSGS");
+            Console.WriteLine("Providing");
             List<SubscriptionDetails> subscriptions = new(5);
             await BotCommandLogic.GetSubscriptions(subscriptions);
-            Console.WriteLine($"GSGS{subscriptions.Count}");
+            Console.WriteLine($"Sub count = {subscriptions.Count}");
             if (subscriptions.Count == 0)
             {
                 return new List<DiscordAutoCompleteChoice>() { new DiscordAutoCompleteChoice("No Subscriptions", "-1") };
@@ -83,5 +69,19 @@ namespace DiscordBot
             }
             return choices;
         }
-    }    
+    }
+    public class ReminderAutoCompletion : IAutocompleteProvider
+    {
+        public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
+        {
+            //var factory = ctx.Services.GetRequiredService<IDbContextFactory<MadsContext>>();
+            //await using var db = await factory.CreateDbContextAsync();
+            //return db.Reminders.Where(x => x.UserId == ctx.User.Id).Select(x => new DiscordAutoCompleteChoice(x.Id.ToString(), x.Id.ToString()));
+            var test = new List<DiscordAutoCompleteChoice>();
+            test.Add(new DiscordAutoCompleteChoice("test", 1));
+            test.Add(new DiscordAutoCompleteChoice("test2", 2));
+            test.Add(new DiscordAutoCompleteChoice("test3", 3));
+            return test;
+        }
+    }
 }

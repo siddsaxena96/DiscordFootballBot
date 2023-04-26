@@ -261,7 +261,7 @@ namespace DiscordBot
             }
             return message;
         }
-        private static string FormatTimeToIST(DateTime utcDate)
+        public static string FormatTimeToIST(DateTime utcDate)
         {
             TimeZoneInfo istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
             DateTime istDateTime = TimeZoneInfo.ConvertTimeFromUtc(utcDate, istTimeZone);

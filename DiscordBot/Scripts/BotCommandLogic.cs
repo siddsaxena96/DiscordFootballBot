@@ -244,7 +244,7 @@ namespace DiscordBot
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in Getting Scheduled Match {ex.Message}");
-                return "Sorry, Unable to fetch next fixture"
+                return "Sorry, Unable to fetch next fixture";
             }
             return message;
         }

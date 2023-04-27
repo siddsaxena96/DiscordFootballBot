@@ -18,7 +18,6 @@ namespace DiscordBot
         private static Dictionary<int, Team> _teamsCache = new(20);
         private static List<SubscriptionDetails> _subscriptions = new(5);
         private static List<List<string>> _tableData = new(5);
-        private static List<string> _tempStringList = new(5);
         private static string subscriptionFileLocation = "./subscription.json";
 
         public async static Task<string> SubscribeTo(long teamId)
@@ -55,7 +54,9 @@ namespace DiscordBot
         {
             string url = $"http://api.football-data.org//v4/teams/{sub.teamId}/matches?status=SCHEDULED&dateFrom={currentDate}&dateTo={nextDateString}";
             string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
-            if (string.IsNullOrEmpty(response)) return;
+
+            if (response == "FAIL") return;
+
             try
             {
                 var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
@@ -64,12 +65,12 @@ namespace DiscordBot
                     bool remind = false;
                     TimeSpan timeDifference = match.utcDate - DateTime.UtcNow;
                     Console.WriteLine($"{match.homeTeam.name} vs {match.awayTeam.name} - {timeDifference.TotalHours}");
-                    
+
                     remind = timeDifference.TotalHours is < 24 and >= 23.5
                         || timeDifference.TotalHours is < 12 and >= 11.5
-                        || timeDifference.TotalHours is < 1 and > 0;                    
+                        || timeDifference.TotalHours is < 1 and > 0;
 
-                    if (!remind) continue; 
+                    if (!remind) continue;
 
                     DiscordEmbedBuilder embedMessage = new()
                     {
@@ -81,7 +82,7 @@ namespace DiscordBot
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GEGEG{ex.Message}");
+                Console.WriteLine($"Error in trying to get Upcoming Match {ex.Message}");
             }
         }
 
@@ -90,7 +91,9 @@ namespace DiscordBot
             string url = $"http://api.football-data.org/v4/competitions/{competitionCode}/teams";
             string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
 
-            if (!string.IsNullOrEmpty(response))
+            if (response == "FAIL") return null;
+
+            try
             {
                 var competitionTeams = JsonConvert.DeserializeObject<CompetitionTeamsResponse>(response);
                 foreach (var team in competitionTeams.teams)
@@ -102,8 +105,9 @@ namespace DiscordBot
                 }
                 return competitionTeams;
             }
-            else
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error in Trying to get competition teams {ex.Message}");
                 return null;
             }
         }
@@ -111,91 +115,98 @@ namespace DiscordBot
         {
             string url = $"http://api.football-data.org/v4/competitions/{competitionCode}/standings";
             string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
-            if (string.IsNullOrEmpty(response))
+
+            if (response == "FAIL") return "Sorry, Unable to fetch standings";
+            
+            try
             {
-                return "Sorry, Unable to fetch standings";
-            }
-            var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(response);
-            string message = string.Empty;
+                var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(response);
+                string message = string.Empty;
 
-            _tableData.Clear();
-            if (competitionCode != "SA")
-                _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts", "Last 5" });
-            else
-                _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts" });
-            stringsToSendBack.Clear();
-
-            var competitionTable = competitionStandings.standings[0].table;
-
-            foreach (var entry in competitionTable)
-            {
+                _tableData.Clear();
                 if (competitionCode != "SA")
-                    _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form });
+                    _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts", "Last 5" });
                 else
-                    _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points });
-            }
-            var numColumns = _tableData[0].Count;
-            var columnWidths = new int[numColumns];
+                    _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts" });
+                stringsToSendBack.Clear();
 
-            // Determine the number of rows and columns in the table data
-            int numRows = _tableData.Count;
-            int numCols = _tableData[0].Count;
+                var competitionTable = competitionStandings.standings[0].table;
 
-            // Determine the maximum width of each column
-            int[] colWidths = new int[numCols];
-            for (int col = 0; col < numCols; col++)
-            {
-                int maxColWidth = 0;
-                for (int row = 0; row < numRows; row++)
+                foreach (var entry in competitionTable)
                 {
-                    int cellWidth = _tableData[row][col].Length;
-                    if (cellWidth > maxColWidth)
-                    {
-                        maxColWidth = cellWidth;
-                    }
+                    if (competitionCode != "SA")
+                        _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form });
+                    else
+                        _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points });
                 }
-                colWidths[col] = maxColWidth;
-            }
+                var numColumns = _tableData[0].Count;
+                var columnWidths = new int[numColumns];
 
-            // Set up table header
-            message += "+";
-            for (int col = 0; col < numCols; col++)
-            {
-                message += (new string('-', colWidths[col]) + "+");
-            }
-            message += "\n";
-            int rowCounter = 0;
-            // Set up table body
-            for (int row = 0; row < numRows; row++)
-            {
-                message += ("|");
+                // Determine the number of rows and columns in the table data
+                int numRows = _tableData.Count;
+                int numCols = _tableData[0].Count;
+
+                // Determine the maximum width of each column
+                int[] colWidths = new int[numCols];
                 for (int col = 0; col < numCols; col++)
                 {
-                    string cellValue = _tableData[row][col];
-                    message += cellValue;
-                    message += new string('\u0020', colWidths[col] - cellValue.Length) + "|";
-                    //message += ("\u0020" + cellValue.PadRight(colWidths[col]) + "\u0020|");
+                    int maxColWidth = 0;
+                    for (int row = 0; row < numRows; row++)
+                    {
+                        int cellWidth = _tableData[row][col].Length;
+                        if (cellWidth > maxColWidth)
+                        {
+                            maxColWidth = cellWidth;
+                        }
+                    }
+                    colWidths[col] = maxColWidth;
                 }
-                message += "\n";
 
-                // Set up separator between rows
-                message += ("+");
+                // Set up table header
+                message += "+";
                 for (int col = 0; col < numCols; col++)
                 {
                     message += (new string('-', colWidths[col]) + "+");
                 }
                 message += "\n";
-                rowCounter++;
-                if (message.Length >= 1500)
+                int rowCounter = 0;
+                // Set up table body
+                for (int row = 0; row < numRows; row++)
                 {
-                    stringsToSendBack.Add(message);
-                    message = "";
+                    message += ("|");
+                    for (int col = 0; col < numCols; col++)
+                    {
+                        string cellValue = _tableData[row][col];
+                        message += cellValue;
+                        message += new string('\u0020', colWidths[col] - cellValue.Length) + "|";
+                        //message += ("\u0020" + cellValue.PadRight(colWidths[col]) + "\u0020|");
+                    }
+                    message += "\n";
+
+                    // Set up separator between rows
+                    message += ("+");
+                    for (int col = 0; col < numCols; col++)
+                    {
+                        message += (new string('-', colWidths[col]) + "+");
+                    }
+                    message += "\n";
+                    rowCounter++;
+                    if (message.Length >= 1500)
+                    {
+                        stringsToSendBack.Add(message);
+                        message = "";
+                    }
                 }
+
+                stringsToSendBack.Add(message);
+
+                return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToIST(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToIST(competitionStandings.season.endDate)}|\n";
             }
-
-            stringsToSendBack.Add(message);
-
-            return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToIST(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToIST(competitionStandings.season.endDate)}|\n";
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in printing table {ex.Message}");
+                return $"Sorry, Unable to print standings right now";
+            }
         }
         public async static Task GetSubscriptions(List<SubscriptionDetails> subscriptions)
         {
@@ -217,10 +228,9 @@ namespace DiscordBot
             string message = "";
             string url = $"http://api.football-data.org//v4/teams/{teamId}/matches?status=SCHEDULED";
             string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
-            if (string.IsNullOrEmpty(response))
-            {
-                return "Sorry, Unable to fetch next fixture";
-            }
+
+            if (response == "FAIL") return "Sorry, Unable to fetch next fixture";        
+
             try
             {
                 var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
@@ -234,6 +244,7 @@ namespace DiscordBot
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in Getting Scheduled Match {ex.Message}");
+                return "Sorry, Unable to fetch next fixture"
             }
             return message;
         }
@@ -242,10 +253,9 @@ namespace DiscordBot
             string message = "";
             string url = $"http://api.football-data.org//v4/teams/{teamId}/matches?status=SCHEDULED";
             string response = await APIController.GetAsync(url, BotController.configuration.APIToken);
-            if (string.IsNullOrEmpty(response))
-            {
-                return "Sorry, Unable to fetch next fixture";
-            }
+            
+            if (response == "FAIL") return "Sorry, Unable to fetch next fixture";        
+
             try
             {
                 var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
@@ -253,13 +263,14 @@ namespace DiscordBot
                     return "Team has no upcoming matches";
                 var match = fixtureList.matches[0];
                 message = $"**{match.homeTeam.name} VS {match.awayTeam.name}**\n\t{match.competition.name}\n\t{FormatTimeToIST(match.utcDate)}\n\n";
+                return message;
 
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in Getting Scheduled Match {ex.Message}");
-            }
-            return message;
+                return "Sorry, Unable to fetch next fixture";
+            }            
         }
         public static string FormatTimeToIST(DateTime utcDate)
         {

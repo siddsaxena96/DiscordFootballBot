@@ -25,7 +25,8 @@ namespace DiscordBot
             }
             else
             {
-                throw new HttpRequestException($"Request failed with status code {response.StatusCode}");                
+                Console.WriteLine($"Request failed with status code {response.StatusCode} {Environment.StackTrace}");
+                return "FAIL";                
             }
         }
     }

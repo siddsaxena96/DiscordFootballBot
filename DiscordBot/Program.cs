@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DiscordBot
+﻿namespace DiscordBot
 {
     internal class Program
     {
@@ -13,6 +7,8 @@ namespace DiscordBot
         {
             _botController = new BotController();
             _botController.RunAsync().GetAwaiter().GetResult();
+            
+            await BotCommandLogic.RefreshTeamsCache();
             
             CancellationTokenSource cts = new CancellationTokenSource();
 

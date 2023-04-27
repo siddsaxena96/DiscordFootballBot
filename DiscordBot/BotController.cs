@@ -7,38 +7,18 @@ using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.SlashCommands.EventArgs;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace DiscordBot
 {
     public class BotController
-    {
-        public struct Configuration
-        {
-            [JsonProperty("token")]
-            public string Token { get; private set; }
+    {        
+        public DiscordClient _client { get; private set; }        
+        public CommandsNextExtension _commands { get; private set; }        
+        
+        private static ConfigurationStruct _configuration;
+        public static ConfigurationStruct Configuration => _configuration;
 
-            [JsonProperty("prefix")]
-            public string Prefix { get; private set; }
-            
-            [JsonProperty("apitoken")]
-            public string APIToken { get; private set; }
-            
-            [JsonProperty("serverid")]
-            public ulong ServerId { get;private set; }
-            
-            [JsonProperty("footychannelid")]
-            public ulong FootyChannelId { get;private set; }  
-        }
-     
-        public DiscordClient _client { get; private set; }
-        public InteractivityExtension _interactivity { get; private set; }
-        public CommandsNextExtension _commands { get; private set; }
-        public static Configuration configuration;
         public async Task RunAsync()
         {
             var json = string.Empty;
@@ -46,12 +26,12 @@ namespace DiscordBot
             using var sr = new StreamReader(fs, new UTF8Encoding(false));
             json = await sr.ReadToEndAsync();
 
-            configuration = JsonConvert.DeserializeObject<Configuration>(json);
+            _configuration = JsonConvert.DeserializeObject<ConfigurationStruct>(json);
 
             var config = new DiscordConfiguration()
             {
                 Intents = DiscordIntents.All,
-                Token = configuration.Token,
+                Token = _configuration.Token,
                 TokenType = TokenType.Bot,
                 AutoReconnect = true
             };
@@ -64,7 +44,7 @@ namespace DiscordBot
 
             var commandsConfig = new CommandsNextConfiguration()
             {
-                StringPrefixes = new string[] { configuration.Prefix },
+                StringPrefixes = new string[] { _configuration.Prefix },
                 EnableMentionPrefix = true,
                 EnableDms = true,
                 EnableDefaultHelp = false,
@@ -74,7 +54,7 @@ namespace DiscordBot
             _commands.RegisterCommands<Commands>();
             
             var slashCommandsConfig = _client.UseSlashCommands();
-            slashCommandsConfig.RegisterCommands<SlashCommands>(configuration.ServerId);            
+            slashCommandsConfig.RegisterCommands<SlashCommands>(_configuration.ServerId);            
             slashCommandsConfig.AutocompleteErrored += AutoCompleteErr;
             slashCommandsConfig.SlashCommandErrored += SlashErr;
             await _client.ConnectAsync();            
@@ -87,7 +67,6 @@ namespace DiscordBot
 
             throw new Exception();
         }
-
         private Task AutoCompleteErr(SlashCommandsExtension sender, AutocompleteErrorEventArgs args)
         {           
             Console.WriteLine(args.Exception);
@@ -101,7 +80,7 @@ namespace DiscordBot
             await BotCommandLogic.RoutineCheckUpcomingMatches(matchReminders);
             if (matchReminders.Count > 0)
             {
-                DiscordChannel channel = await _client.GetChannelAsync(configuration.FootyChannelId);
+                DiscordChannel channel = await _client.GetChannelAsync(Configuration.FootyChannelId);
                 foreach (var embedMessage in matchReminders)
                 {
                     await channel.SendMessageAsync(embed: embedMessage);
@@ -113,7 +92,5 @@ namespace DiscordBot
         {
             return Task.CompletedTask;
         }
-
-
     }
 }

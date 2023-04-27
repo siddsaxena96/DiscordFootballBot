@@ -1,24 +1,39 @@
 ﻿using DSharpPlus.SlashCommands;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace DiscordBot
 {
     [Serializable]
+    public struct ConfigurationStruct
+    {
+        [JsonProperty("token")]
+        public string Token { get; private set; }
+
+        [JsonProperty("prefix")]
+        public string Prefix { get; private set; }
+
+        [JsonProperty("fdataapiendpoint")]
+        public string FDataAPIEndpoint { get;private set; } 
+
+        [JsonProperty("fdataapitoken")]
+        public string FDataAPIToken { get; private set; }
+
+        [JsonProperty("serverid")]
+        public ulong ServerId { get; private set; }
+
+        [JsonProperty("footychannelid")]
+        public ulong FootyChannelId { get; private set; }
+    }
+    [Serializable]
     public class SubscriptionDetails
     {
-        public int teamId { get; set; }
-        public string teamName { get; set; }
-        public SubscriptionDetails(int teamId, string teamName)
+        public Team team;
+        public SubscriptionDetails(Team team)
         {
-            this.teamId = teamId;
-            this.teamName = teamName;
+            this.team = team;
         }
     }
-    public enum LeagueOptions
+    public enum FDataLeagueOptions
     {
         [ChoiceName("English Premier Leage")]
         PL,
@@ -31,7 +46,17 @@ namespace DiscordBot
         [ChoiceName("Ligue 1")]
         FL1
     }
+    public enum APIFootballLeagueOptions
+    {
+        PL =39,
+        PD = 140,
+        BL1 =78,
+        SA = 135,
+        FL1 =61
+    }
+    
     #region Responses 
+    [Serializable]
     public class CompetitionTeamsResponse
     {
         public int count { get; set; }
@@ -40,13 +65,14 @@ namespace DiscordBot
         public Season season { get; set; }
         public List<Team> teams { get; set; }
     }
+    [Serializable]
     public class TeamFixturesResponse
     {
         public FiltersMatchResponse filters { get; set; }
         public ResultSet resultSet { get; set; }
         public List<Match> matches { get; set; }
     }
-
+    [Serializable]
     public class CompetitionStandingsResponse
     {
         public FiltersTeamResponse filters { get; set; }
@@ -56,6 +82,9 @@ namespace DiscordBot
         public List<Standing> standings { get; set; }
     }
     #endregion
+
+    #region Football-Data-Org Models
+    
     public class Area
     {
         public int id { get; set; }
@@ -259,4 +288,5 @@ namespace DiscordBot
         public FullTime fullTime { get; set; }
         public HalfTime halfTime { get; set; }
     }
+    #endregion
 }

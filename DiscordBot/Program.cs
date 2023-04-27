@@ -1,36 +1,39 @@
-﻿namespace DiscordBot
+﻿using System;
+using System.Drawing;
+
+namespace DiscordBot
 {
     internal class Program
     {
         private static BotController _botController;
+        private static bool isDailyTaskRunning = true;
         static async Task Main(string[] args)
         {
             _botController = new BotController();
             _botController.RunAsync().GetAwaiter().GetResult();
-            
-            await BotCommandLogic.RefreshTeamsCache();
-            
-            CancellationTokenSource cts = new CancellationTokenSource();
 
-            // Create a periodic timer that will call the DoWork method every 5 minutes
-            TimeSpan period = TimeSpan.FromMinutes(30);
-            using var timer = new Timer(async _ => await DoWork(), null, TimeSpan.Zero, period);
+            Timer dailyTimer = new Timer(async (state) => await DailyTask(), null, TimeSpan.Zero, TimeSpan.FromHours(24));
+            
+            Timer halfHourlyTimer = new Timer(async (state) => { if (!isDailyTaskRunning) await HalfHourlyTask(); }, null, TimeSpan.Zero, TimeSpan.FromMinutes(30));
 
-            // Wait for the user to press a key to cancel the timer
-            Console.WriteLine("Press any key to stop the timer...");
-            await Console.In.ReadLineAsync();
-            cts.Cancel();
+            Console.ReadLine();                                 
         }
 
-        static async Task DoWork()
+        private static async Task DailyTask()
         {
-            // Do your work here
-            Console.WriteLine($"DoWork started at { BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
-
-            // Simulate some async work
-            await _botController.RoutineCheckUpcomingMatches();
-
-            Console.WriteLine($"DoWork completed at {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
+            isDailyTaskRunning = true;
+            Console.WriteLine($"Started Daily Task {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
+            await BotCommandLogic.RefreshTeamsCache();
+            //await Task.Delay(TimeSpan.FromMinutes(1));
+            Console.WriteLine($"Ended Daily Task {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
+            isDailyTaskRunning = false;
         }
+
+        private static async Task HalfHourlyTask()
+        {
+            Console.WriteLine($"Started Half Hourly Task {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
+            await _botController.RoutineCheckUpcomingMatches();
+            Console.WriteLine($"Ended Half Hourly Task {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
+        }              
     }
 }

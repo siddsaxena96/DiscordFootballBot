@@ -13,10 +13,16 @@ namespace DiscordBot
         public string Prefix { get; private set; }
 
         [JsonProperty("fdataapiendpoint")]
-        public string FDataAPIEndpoint { get;private set; } 
+        public string FDataAPIEndpoint { get; private set; }
 
         [JsonProperty("fdataapitoken")]
         public string FDataAPIToken { get; private set; }
+        
+        [JsonProperty("apifootballendpoint")]
+        public string APIFootbalAPIEndPoint { get; private set; }
+        
+        [JsonProperty("apifootballtoken")]
+        public string APIFootballToken { get; private set; }
 
         [JsonProperty("serverid")]
         public ulong ServerId { get; private set; }
@@ -53,13 +59,13 @@ namespace DiscordBot
     }
     public enum APIFootballLeagueOptions
     {
-        PL =39,
+        PL = 39,
         PD = 140,
-        BL1 =78,
+        BL1 = 78,
         SA = 135,
-        FL1 =61
+        FL1 = 61
     }
-    
+
     #region Responses 
     [Serializable]
     public class CompetitionTeamsResponse
@@ -94,6 +100,16 @@ namespace DiscordBot
         public Competition competition { get; set; }
         public Season season { get; set; }
         public List<Scorer> scorers { get; set; }
+    }
+    [Serializable]
+    public class CompetitionStandingsResponseAPIFootball
+    {
+        public string get { get; set; }
+        public ParametersAPIFootball parameters { get; set; }
+        public List<object> errors { get; set; }
+        public int results { get; set; }
+        public Paging paging { get; set; }
+        public List<ResponseAPIFootball> response { get; set; }
     }
     #endregion
 
@@ -302,7 +318,7 @@ namespace DiscordBot
         public FullTime fullTime { get; set; }
         public HalfTime halfTime { get; set; }
     }
-    
+
     public class Filters
     {
         public string season { get; set; }
@@ -331,7 +347,7 @@ namespace DiscordBot
         public string assists { get; set; }
         public string penalties { get; set; }
     }
-    
+
     public class TeamTopScorer
     {
         public int id { get; set; }
@@ -345,6 +361,89 @@ namespace DiscordBot
         public string clubColors { get; set; }
         public string venue { get; set; }
         public DateTime lastUpdated { get; set; }
+    }
+    #endregion
+    
+    #region API-Football Models
+    public class League
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public string country { get; set; }
+        public string logo { get; set; }
+        public string flag { get; set; }
+        public string season { get; set; }
+        public List<List<StandingAPIFootball>> standings { get; set; }
+    }
+    public class All
+    {
+        public string played { get; set; }
+        public string win { get; set; }
+        public string draw { get; set; }
+        public string lose { get; set; }
+        public Goals goals { get; set; }
+    }
+
+    public class Away
+    {
+        public string played { get; set; }
+        public string win { get; set; }
+        public string draw { get; set; }
+        public string lose { get; set; }
+        public Goals goals { get; set; }
+    }
+
+    public class Goals
+    {
+        public string @for { get; set; }
+        public string against { get; set; }
+    }
+
+    public class Home
+    {
+        public string played { get; set; }
+        public string win { get; set; }
+        public string draw { get; set; }
+        public string lose { get; set; }
+        public Goals goals { get; set; }
+    }
+
+    public class StandingAPIFootball
+    {
+        public int rank { get; set; }
+        public TeamAPIFootball team { get; set; }
+        public string points { get; set; }
+        public string goalsDiff { get; set; }
+        public string group { get; set; }
+        public string form { get; set; }
+        public string status { get; set; }
+        public string description { get; set; }
+        public All all { get; set; }
+        public Home home { get; set; }
+        public Away away { get; set; }
+        public DateTime update { get; set; }
+    }
+    public class Paging
+    {
+        public int current { get; set; }
+        public int total { get; set; }
+    }
+
+    public class ParametersAPIFootball
+    {
+        public string league { get; set; }
+        public string season { get; set; }
+    }
+
+    public class ResponseAPIFootball
+    {
+        public League league { get; set; }
+    }    
+    public class TeamAPIFootball
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public string logo { get; set; }
     }
     #endregion
 }

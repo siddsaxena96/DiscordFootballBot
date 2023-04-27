@@ -12,6 +12,7 @@
     <PackageReference Include="DSharpPlus.CommandsNext" Version="5.0.0-nightly-01507" />
     <PackageReference Include="DSharpPlus.Interactivity" Version="5.0.0-nightly-01507" />
     <PackageReference Include="DSharpPlus.SlashCommands" Version="5.0.0-nightly-01507" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0-preview.2.23128.3" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,6 +7,7 @@ namespace DiscordBot
     public static class BotCommandLogic
     {
         private static Dictionary<string, List<Team>> _footballDataOrgTeamsCache = new(5);
+        private static Dictionary<int, int> _footballDataOrgTeamIdToAPIFootballTeamId = new(100);
 
         private static List<SubscriptionDetails> _subscriptions = new(5);
         private static List<List<string>> _tableData = new(5);
@@ -214,14 +215,52 @@ namespace DiscordBot
                         {
                             listOfTeams.Add(team);
                         }
-                    }                    
+                    }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Could not refresh teams cache {ex.Message}");
                     return;
-                }
+                }               
             }
+
+            await Task.Delay(TimeSpan.FromMinutes(1)); //Only 10 calls allowed per minute 
+
+            foreach (var value in values)
+            {
+                string league = value.ToString();
+                Enum.TryParse(league,out APIFootballLeagueOptions options);
+                int leagueAPIFootball = (int)options;
+                                
+                string url = $"competitions/{league}/standings";
+                string standingsFootballOrg = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);                
+                var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(standingsFootballOrg);
+
+                url = $"standings?league={leagueAPIFootball}&season={GetCurrentFootballSeason()}";
+                var standingsAPIFootball = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
+                var apiFootballStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponseAPIFootball>(standingsAPIFootball);
+                
+                int matched = 0;
+                _footballDataOrgTeamIdToAPIFootballTeamId.Clear();
+                foreach (var team in competitionStandings.standings[0].table)
+                {
+                    foreach(var teamToMatch in apiFootballStandings.response[0].league.standings[0])
+                    {
+                        if(team.position == teamToMatch.rank.ToString())
+                        {
+                            matched++;
+                            _footballDataOrgTeamIdToAPIFootballTeamId.Add(team.team.id, teamToMatch.team.id);
+                            Console.WriteLine($"{team.team.name} - {teamToMatch.team.name}");
+                        }
+                    }                    
+                }                
+            }
+        }
+
+        private static int GetCurrentFootballSeason()
+        {
+            int currentYear = DateTime.Now.Year;
+            return DateTime.Now.Month >= 8 ? currentYear : (currentYear - 1);
         }
 
         public async static Task<string> GetAllScheduledFixturesForTeam(long teamId)

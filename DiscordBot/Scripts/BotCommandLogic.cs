@@ -84,7 +84,7 @@ namespace DiscordBot
         private async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
         {
             string url = $"teams/{sub.team.id}/matches?status=SCHEDULED&dateFrom={currentDate}&dateTo={nextDateString}";
-            string response = await APIController.GetRequestAsync(BotController.Configuration.FDataAPIEndpoint, url, BotController.Configuration.FDataAPIToken);
+            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
             if (response == "FAIL") return;
 
@@ -122,7 +122,7 @@ namespace DiscordBot
             if (_footballDataOrgTeamsCache.TryGetValue(competitionCode, out var teamList)) return teamList;
 
             string url = $"competitions/{competitionCode}/teams";
-            string response = await APIController.GetRequestAsync(BotController.Configuration.FDataAPIEndpoint, url, BotController.Configuration.FDataAPIToken);
+            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
             if (response == "FAIL") return null;
 
@@ -152,14 +152,13 @@ namespace DiscordBot
         public async static Task<string> GetStandingsForCompetition(string competitionCode, List<string> stringsToSendBack)
         {
             string url = $"competitions/{competitionCode}/standings";
-            string response = await APIController.GetRequestAsync(BotController.Configuration.FDataAPIEndpoint, url, BotController.Configuration.FDataAPIToken);
+            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
             if (response == "FAIL") return "Sorry, Unable to fetch standings";
 
             try
             {
                 var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(response);
-                string message = string.Empty;
 
                 _tableData.Clear();
                 if (competitionCode != "SA")
@@ -177,7 +176,7 @@ namespace DiscordBot
                     else
                         _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points });
                 }
-                CreateTable(_tableData, stringsToSendBack);
+                CreateTable(_tableData, stringsToSendBack, 1500);
 
                 return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToIST(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToIST(competitionStandings.season.endDate)}|\n";
             }
@@ -190,24 +189,22 @@ namespace DiscordBot
 
         public async static Task RefreshTeamsCache()
         {
-            _footballDataOrgTeamsCache.Clear();
             var values = Enum.GetValues(typeof(APIFootballLeagueOptions));
-            
+
             foreach (var value in values)
             {
                 string league = value.ToString();
                 string url = $"competitions/{league}/teams";
-                string response = await APIController.GetRequestAsync(BotController.Configuration.FDataAPIEndpoint, url, BotController.Configuration.FDataAPIToken);
+                string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
                 if (response == "FAIL") continue;
 
+                _footballDataOrgTeamsCache.Remove(league);
+
                 try
                 {
-                    if (!_footballDataOrgTeamsCache.TryGetValue(league, out var listOfTeams))
-                    {
-                        _footballDataOrgTeamsCache.Add(league, new(20));
-                        listOfTeams = _footballDataOrgTeamsCache[league];
-                    }
+                    _footballDataOrgTeamsCache.Add(league, new(20));
+                    var listOfTeams = _footballDataOrgTeamsCache[league];
 
                     var competitionTeams = JsonConvert.DeserializeObject<CompetitionTeamsResponse>(response);
 
@@ -217,7 +214,7 @@ namespace DiscordBot
                         {
                             listOfTeams.Add(team);
                         }
-                    }
+                    }                    
                 }
                 catch (Exception ex)
                 {
@@ -231,7 +228,7 @@ namespace DiscordBot
         {
             string message = "";
             string url = $"teams/{teamId}/matches?status=SCHEDULED";
-            string response = await APIController.GetRequestAsync(BotController.Configuration.FDataAPIEndpoint, url, BotController.Configuration.FDataAPIToken);
+            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
             if (response == "FAIL") return "Sorry, Unable to fetch next fixture";
 
@@ -255,7 +252,7 @@ namespace DiscordBot
         public async static Task<string> GetUpcomingFixtureForTeam(long teamId)
         {
             string url = $"teams/{teamId}/matches?status=SCHEDULED";
-            string response = await APIController.GetRequestAsync(BotController.Configuration.FDataAPIEndpoint, url, BotController.Configuration.FDataAPIToken);
+            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
             if (response == "FAIL") return "Sorry, Unable to fetch next fixture";
 
@@ -275,8 +272,34 @@ namespace DiscordBot
                 return "Sorry, Unable to fetch next fixture";
             }
         }
+        public async static Task<string> GetTopScorersForCompetition(string competitionCode, List<string> responseStrings)
+        {
+            string url = $"competitions/{competitionCode}/scorers";
+            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
-        private static void CreateTable(List<List<string>> tableData, List<string> stringsToSendBack)
+            if (response == "FAIL") return "Sorry, unable to fetch top scorers right now";
+            try
+            {
+                var topScorers = JsonConvert.DeserializeObject<CompetitionTopScorerResponse>(response);
+                _tableData.Clear();
+                _tableData.Add(new() { "Pos", "Name", "Team", "G", "A", "P", "PL" });
+                int pos = 1;
+                foreach (var scorer in topScorers.scorers)
+                {
+                    _tableData.Add(new() { pos.ToString(), scorer.player.name, scorer.team.name, scorer.goals, scorer.assists ?? "0", scorer.penalties ?? "0", scorer.playedMatches ?? "0" });
+                    pos++;
+                }
+                CreateTable(_tableData, responseStrings, 1800);
+                return $"{topScorers.competition.name}\t|Start Date : {FormatStringToIST(topScorers.season.startDate)}|\t|End Date : {FormatStringToIST(topScorers.season.endDate)}|\n";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in fetching top scorers {ex.Message}");
+                return $"Sorry, unable to print top scorers right now";
+            }
+        }
+
+        private static void CreateTable(List<List<string>> tableData, List<string> stringsToSendBack, int charLim)
         {
             string tableString = "";
 
@@ -329,7 +352,7 @@ namespace DiscordBot
                 }
                 tableString += "\n";
                 rowCounter++;
-                if (tableString.Length >= 1500)
+                if (tableString.Length >= charLim)
                 {
                     stringsToSendBack.Add(tableString);
                     tableString = "";

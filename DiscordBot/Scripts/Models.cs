@@ -33,6 +33,11 @@ namespace DiscordBot
             this.team = team;
         }
     }
+    public enum APIChoice
+    {
+        FootbalDataOrg,
+        APIFootball
+    }
     public enum FDataLeagueOptions
     {
         [ChoiceName("English Premier Leage")]
@@ -81,10 +86,19 @@ namespace DiscordBot
         public Season season { get; set; }
         public List<Standing> standings { get; set; }
     }
+    [Serializable]
+    public class CompetitionTopScorerResponse
+    {
+        public int count { get; set; }
+        public Filters filters { get; set; }
+        public Competition competition { get; set; }
+        public Season season { get; set; }
+        public List<Scorer> scorers { get; set; }
+    }
     #endregion
 
     #region Football-Data-Org Models
-    
+
     public class Area
     {
         public int id { get; set; }
@@ -287,6 +301,50 @@ namespace DiscordBot
         public string duration { get; set; }
         public FullTime fullTime { get; set; }
         public HalfTime halfTime { get; set; }
+    }
+    
+    public class Filters
+    {
+        public string season { get; set; }
+        public int limit { get; set; }
+    }
+
+    public class Player
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public string firstName { get; set; }
+        public string lastName { get; set; }
+        public string dateOfBirth { get; set; }
+        public string nationality { get; set; }
+        public string position { get; set; }
+        public object shirtNumber { get; set; }
+        public DateTime lastUpdated { get; set; }
+    }
+
+    public class Scorer
+    {
+        public Player player { get; set; }
+        public TeamTopScorer team { get; set; }
+        public string playedMatches { get; set; }
+        public string goals { get; set; }
+        public string assists { get; set; }
+        public string penalties { get; set; }
+    }
+    
+    public class TeamTopScorer
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public string shortName { get; set; }
+        public string tla { get; set; }
+        public string crest { get; set; }
+        public string address { get; set; }
+        public string website { get; set; }
+        public int founded { get; set; }
+        public string clubColors { get; set; }
+        public string venue { get; set; }
+        public DateTime lastUpdated { get; set; }
     }
     #endregion
 }

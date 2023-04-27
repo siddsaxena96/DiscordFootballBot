@@ -2,20 +2,35 @@
 {
     public static class APIController
     {
-        private static readonly HttpClient client = new HttpClient();
-
-        public static async Task<string> GetRequestAsync(string apiEndPoint, string request, string header)
+        private static readonly HttpClient _client = new HttpClient();
+        private static readonly Dictionary<APIChoice, List<(string header, string token)>> _apiHeaders = new(2);
+                
+        public static async Task<string> GetRequestAsync(string url,APIChoice apiChoice)
         {
-            return await GetAsync(apiEndPoint + request, header);
+            switch (apiChoice)
+            {
+                case APIChoice.FootbalDataOrg:
+                    url = BotController.Configuration.FDataAPIEndpoint + url;
+                    if(!_apiHeaders.ContainsKey(apiChoice))
+                    {
+                        _apiHeaders.Add(apiChoice, new() { ("X-Auth-Token", BotController.Configuration.FDataAPIToken) });
+                    }
+                    break;
+                case APIChoice.APIFootball:                    
+                    break;
+            }
+            return await GetAsync(url, _apiHeaders[apiChoice]);
         }
-
-        private static async Task<string> GetAsync(string url, string header)
+        private static async Task<string> GetAsync(string url, List<(string header,string token)> headers)
         {
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url);
 
-            request.Headers.Add("X-Auth-Token", header);
+            foreach(var  header in headers)
+            {
+                request.Headers.Add(header.header,header.token);
+            }
 
-            HttpResponseMessage response = await client.SendAsync(request);
+            HttpResponseMessage response = await _client.SendAsync(request);
 
             if (response.IsSuccessStatusCode)
             {

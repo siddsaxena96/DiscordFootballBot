@@ -6,6 +6,8 @@ namespace DiscordBot
 {
     public class SlashCommands : ApplicationCommandModule
     {
+        List<string> responseStrings = new(5);
+
         [SlashCommand("Subscribe_To_Team", "Subscribe to fixture reminders of a team")]
         public async Task SubscribeToTeam(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague,
             [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))]
@@ -67,9 +69,22 @@ namespace DiscordBot
         public async Task ShowStandings(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
-            List<string> responseStrings = new List<string>(3);
+            responseStrings.Clear();
             string response = await BotCommandLogic.GetStandingsForCompetition(selectedLeague.ToString(), responseStrings);
             Console.WriteLine(response);
+            foreach (var responseString in responseStrings)
+            {
+                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
+            }
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
+        }
+
+        [SlashCommand("Show_Top_Scorer", "Shows current top goalscorers of the selected league")]
+        public async Task ShowTopScorers(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague)
+        {
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+            responseStrings.Clear();
+            string response = await BotCommandLogic.GetTopScorersForCompetition(selectedLeague.ToString(), responseStrings);
             foreach (var responseString in responseStrings)
             {
                 await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");

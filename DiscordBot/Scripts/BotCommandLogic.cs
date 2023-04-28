@@ -9,6 +9,8 @@ namespace DiscordBot
         private static Dictionary<string, List<Team>> _footballDataOrgTeamsCache = new(5);
         private static Dictionary<int, int> _footballDataOrgTeamIdToAPIFootballTeamId = new(100);
 
+        private static Dictionary<int, List<ResponsePlayerStats>> _teamPlayersCache = new(20);
+
         private static List<ResponsePlayerStats> _playerStatsHelper = new(25);
 
         private static List<SubscriptionDetails> _subscriptions = new(5);
@@ -339,6 +341,61 @@ namespace DiscordBot
                 return $"Sorry, unable to print top scorers right now";
             }
         }
+        public async static Task GetPlayerNamesFromTeam(long teamId, List<(int playerIndex, string playerName)> playerNames)
+        {
+            if (_footballDataOrgTeamIdToAPIFootballTeamId.TryGetValue(Convert.ToInt32(teamId), out int teamIdAPIFootball))
+            {
+                _playerStatsHelper.Clear();
+                
+                if (_teamPlayersCache.TryGetValue(teamIdAPIFootball, out var playerList))
+                {
+                    _playerStatsHelper.AddRange(playerList);
+                }
+                else
+                {
+                    string url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}";
+                    var response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
+
+                    if (response == "FAIL") return;
+
+                    var teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);                    
+
+                    while (teamPlayersResponse.paging.current <= teamPlayersResponse.paging.total)
+                    {
+                        _playerStatsHelper.AddRange(teamPlayersResponse.response);
+
+                        if (teamPlayersResponse.paging.current == teamPlayersResponse.paging.total) break;
+
+                        url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}&page={teamPlayersResponse.paging.current + 1}";
+                        response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
+
+                        if (response == "FAIL") break;
+
+                        teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
+                    }
+                    _teamPlayersCache.Add(teamIdAPIFootball, new(_playerStatsHelper));
+                }
+                
+                //Cleaning up list since we only have 25 options
+                for (int i = _playerStatsHelper.Count - 1; i >= 0; i--)
+                {
+                    ResponsePlayerStats player = _playerStatsHelper[i];
+                    if (player.statistics.Count == 0
+                        || string.IsNullOrEmpty(player.statistics[0].games.minutes) || Convert.ToInt32(player.statistics[0].games.minutes) < 90
+                        || string.IsNullOrEmpty(player.statistics[0].games.appearences) || Convert.ToInt32(player.statistics[0].games.appearences) < 5)
+                    {
+                        _playerStatsHelper.RemoveAt(i);
+                    }
+                }
+
+                playerNames.Clear();
+                for (int i = 0; i < _playerStatsHelper.Count; i++)
+                {
+                    var playerName = _playerStatsHelper[i].player.firstname + " " + _playerStatsHelper[i].player.lastname;
+                    playerNames.Add((i, playerName));
+                }
+            }
+        }
 
         public async static Task<string> GetPlayerStats(int playerIndex, List<string> responseStrings)
         {
@@ -454,95 +511,6 @@ namespace DiscordBot
         {
             DateTime date = DateTime.ParseExact(yyyymmdd, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             return date.ToString("dd-MM-yyyy");
-        }
-
-        public async static Task GetPlayerNamesFromTeam(long teamId, List<(int playerIndex, string playerName)> playerNames)
-        {
-            if (_footballDataOrgTeamIdToAPIFootballTeamId.TryGetValue(Convert.ToInt32(teamId), out int teamIdAPIFootball))
-            {
-                string url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}";
-                var response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
-
-                if (response == "FAIL") return;
-
-                var teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
-                _playerStatsHelper.Clear();
-
-                while (teamPlayersResponse.paging.current <= teamPlayersResponse.paging.total)
-                {
-                    _playerStatsHelper.AddRange(teamPlayersResponse.response);
-
-                    if (teamPlayersResponse.paging.current == teamPlayersResponse.paging.total) break;
-
-                    url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}&page={teamPlayersResponse.paging.current + 1}";
-                    response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
-
-                    if (response == "FAIL") break;
-
-                    teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
-                }
-                //Cleaning up list since we only have 25 options
-                for (int i = _playerStatsHelper.Count - 1; i >= 0; i--)
-                {
-                    ResponsePlayerStats player = _playerStatsHelper[i];
-                    if (player.statistics.Count == 0
-                        || string.IsNullOrEmpty(player.statistics[0].games.minutes) || Convert.ToInt32(player.statistics[0].games.minutes) < 90
-                        || string.IsNullOrEmpty(player.statistics[0].games.appearences) || Convert.ToInt32(player.statistics[0].games.appearences) < 5)
-                    {
-                        _playerStatsHelper.RemoveAt(i);
-                    }
-                }
-
-                playerNames.Clear();
-                for (int i = 0; i < _playerStatsHelper.Count; i++)
-                {
-                    var playerName = _playerStatsHelper[i].player.firstname + " " + _playerStatsHelper[i].player.lastname;
-                    playerNames.Add((i, playerName));
-                }
-            }
-        }
-        static int LevenshteinDistance(string s, string t)
-        {
-            int n = s.Length;
-            int m = t.Length;
-            int[,] d = new int[n + 1, m + 1];
-
-            if (n == 0)
-            {
-                return m;
-            }
-
-            if (m == 0)
-            {
-                return n;
-            }
-
-            for (int i = 0; i <= n; i++)
-            {
-                d[i, 0] = i;
-            }
-
-            for (int j = 0; j <= m; j++)
-            {
-                d[0, j] = j;
-            }
-
-            for (int j = 1; j <= m; j++)
-            {
-                for (int i = 1; i <= n; i++)
-                {
-                    if (s[i - 1] == t[j - 1])
-                    {
-                        d[i, j] = d[i - 1, j - 1];
-                    }
-                    else
-                    {
-                        d[i, j] = Math.Min(d[i - 1, j], Math.Min(d[i, j - 1], d[i - 1, j - 1])) + 1;
-                    }
-                }
-            }
-
-            return d[n, m];
         }
     }
 }

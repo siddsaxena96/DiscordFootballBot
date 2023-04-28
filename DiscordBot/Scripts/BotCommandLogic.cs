@@ -166,20 +166,14 @@ namespace DiscordBot
                 var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(response);
 
                 _tableData.Clear();
-                if (competitionCode != "SA")
-                    _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts", "Last 5" });
-                else
-                    _tableData.Add(new() { "Pos", "Team", "MP", "W", "D", "L", "GF", "GA", "GD", "Pts" });
+                _tableData.Add(new() { "Pos", "Team", "Played", "Win", "Draw", "Loss", "Gls For", "Gls Agnst", "Goal Diff", "Points", "Last 5" });
                 stringsToSendBack.Clear();
 
                 var competitionTable = competitionStandings.standings[0].table;
 
                 foreach (var entry in competitionTable)
                 {
-                    if (competitionCode != "SA")
-                        _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form });
-                    else
-                        _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points });
+                    _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form ?? "NA" });
                 }
                 CreateTable(_tableData, stringsToSendBack, 1500);
 
@@ -325,11 +319,11 @@ namespace DiscordBot
             {
                 var topScorers = JsonConvert.DeserializeObject<CompetitionTopScorerResponse>(response);
                 _tableData.Clear();
-                _tableData.Add(new() { "Pos", "Name", "Team", "G", "A", "P", "PL" });
+                _tableData.Add(new() { "Pos", "Name", "Team", "Goals", "Assists", "Penalties", "Played" });
                 int pos = 1;
                 foreach (var scorer in topScorers.scorers)
                 {
-                    _tableData.Add(new() { pos.ToString(), scorer.player.name, scorer.team.name, scorer.goals, scorer.assists ?? "0", scorer.penalties ?? "0", scorer.playedMatches ?? "0" });
+                    _tableData.Add(new() { pos.ToString(), scorer.player.name, scorer.team.name, scorer.goals, scorer.assists ?? "NA", scorer.penalties ?? "NA", scorer.playedMatches ?? "NA" });
                     pos++;
                 }
                 CreateTable(_tableData, responseStrings, 1800);
@@ -346,7 +340,7 @@ namespace DiscordBot
             if (_footballDataOrgTeamIdToAPIFootballTeamId.TryGetValue(Convert.ToInt32(teamId), out int teamIdAPIFootball))
             {
                 _playerStatsHelper.Clear();
-                
+
                 if (_teamPlayersCache.TryGetValue(teamIdAPIFootball, out var playerList))
                 {
                     _playerStatsHelper.AddRange(playerList);
@@ -358,7 +352,7 @@ namespace DiscordBot
 
                     if (response == "FAIL") return;
 
-                    var teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);                    
+                    var teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
 
                     while (teamPlayersResponse.paging.current <= teamPlayersResponse.paging.total)
                     {
@@ -375,7 +369,7 @@ namespace DiscordBot
                     }
                     _teamPlayersCache.Add(teamIdAPIFootball, new(_playerStatsHelper));
                 }
-                
+
                 //Cleaning up list since we only have 25 options
                 for (int i = _playerStatsHelper.Count - 1; i >= 0; i--)
                 {

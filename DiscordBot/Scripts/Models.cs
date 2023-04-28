@@ -111,6 +111,16 @@ namespace DiscordBot
         public Paging paging { get; set; }
         public List<ResponseAPIFootball> response { get; set; }
     }
+    [Serializable]
+    public class TeamPlayersResponseAPIFootball
+    {
+        public string get { get; set; }
+        public ParametersPlayerStats parameters { get; set; }
+        public List<object> errors { get; set; }
+        public int results { get; set; }
+        public Paging paging { get; set; }
+        public List<ResponsePlayerStats> response { get; set; }
+    }
     #endregion
 
     #region Football-Data-Org Models
@@ -365,7 +375,7 @@ namespace DiscordBot
     #endregion
     
     #region API-Football Models
-    public class League
+    public class LeagueAPIFootball
     {
         public int id { get; set; }
         public string name { get; set; }
@@ -437,7 +447,7 @@ namespace DiscordBot
 
     public class ResponseAPIFootball
     {
-        public League league { get; set; }
+        public LeagueAPIFootball league { get; set; }
     }    
     public class TeamAPIFootball
     {
@@ -445,5 +455,148 @@ namespace DiscordBot
         public string name { get; set; }
         public string logo { get; set; }
     }
+    // Player Stats stuff -
+    public class Birth
+    {
+        public string date { get; set; }
+        public string place { get; set; }
+        public string country { get; set; }
+    }
+
+    public class Cards
+    {
+        public string yellow { get; set; }
+        public string yellowred { get; set; }
+        public string red { get; set; }
+    }
+
+    public class Dribbles
+    {
+        public string attempts { get; set; }
+        public string success { get; set; }
+        public object past { get; set; }
+    }
+
+    public class Duels
+    {
+        public string total { get; set; }
+        public string won { get; set; }
+    }
+
+    public class Fouls
+    {
+        public string drawn { get; set; }
+        public string committed { get; set; }
+    }
+
+    public class Games
+    {
+        public string appearences { get; set; }
+        public string lineups { get; set; }
+        public string minutes { get; set; }
+        public object number { get; set; }
+        public string position { get; set; }
+        public string rating { get; set; }
+        public bool captain { get; set; }
+    }
+
+    public class GoalsPlayerStats
+    {
+        public string total { get; set; }
+        public string conceded { get; set; }
+        public string assists { get; set; }
+        public string saves { get; set; }
+    }
+
+    public class LeaguePlayerStats
+    {
+        public int? id { get; set; }
+        public string name { get; set; }
+        public string country { get; set; }
+        public string logo { get; set; }
+        public string flag { get; set; }
+        public object season { get; set; }
+    }    
+
+    public class ParametersPlayerStats
+    {
+        public string season { get; set; }
+        public string team { get; set; }
+    }
+
+    public class Passes
+    {
+        public string total { get; set; }
+        public string key { get; set; }
+        public string accuracy { get; set; }
+    }
+
+    public class Penalty
+    {
+        public object won { get; set; }
+        public object commited { get; set; }
+        public string scored { get; set; }
+        public string missed { get; set; }
+        public string saved { get; set; }
+    }
+
+    public class PlayerPlayerStats
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public string firstname { get; set; }
+        public string lastname { get; set; }
+        public int age { get; set; }
+        public Birth birth { get; set; }
+        public string nationality { get; set; }
+        public string height { get; set; }
+        public string weight { get; set; }
+        public bool injured { get; set; }
+        public string photo { get; set; }
+    }
+
+    public class ResponsePlayerStats
+    {
+        public PlayerPlayerStats player { get; set; }
+        public List<Statistic> statistics { get; set; }
+    }
+   
+    public class Shots
+    {
+        public string total { get; set; }
+        public string on { get; set; }
+    }
+
+    public class Statistic
+    {
+        public TeamAPIFootball team { get; set; }
+        public LeaguePlayerStats league { get; set; }
+        public Games games { get; set; }
+        public Substitutes substitutes { get; set; }
+        public Shots shots { get; set; }
+        public GoalsPlayerStats goals { get; set; }
+        public Passes passes { get; set; }
+        public Tackles tackles { get; set; }
+        public Duels duels { get; set; }
+        public Dribbles dribbles { get; set; }
+        public Fouls fouls { get; set; }
+        public Cards cards { get; set; }
+        public Penalty penalty { get; set; }
+    }
+
+    public class Substitutes
+    {
+        public string @in { get; set; }
+        public string @out { get; set; }
+        public string bench { get; set; }
+    }
+
+    public class Tackles
+    {
+        public string total { get; set; }
+        public string blocks { get; set; }
+        public string interceptions { get; set; }
+    }    
+
     #endregion
 }

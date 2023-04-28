@@ -24,7 +24,6 @@ namespace DiscordBot
             isDailyTaskRunning = true;
             Console.WriteLine($"Started Daily Task {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
             await BotCommandLogic.RefreshTeamsCache();
-            //await Task.Delay(TimeSpan.FromMinutes(1));
             Console.WriteLine($"Ended Daily Task {BotCommandLogic.FormatTimeToIST(DateTime.UtcNow)}");
             isDailyTaskRunning = false;
         }

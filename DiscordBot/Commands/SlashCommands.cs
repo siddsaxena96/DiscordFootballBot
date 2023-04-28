@@ -91,6 +91,16 @@ namespace DiscordBot
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
+
+        [SlashCommand("Show_Player_Stats", "Shows individual stats of the selected player")]
+        public async Task ShowPlayerStats(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague,
+            [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))][Option("Team", "Select Team", true)] long teamId,
+            [Autocomplete(typeof(FetchPlayerNamesAutoComplete))][Option("Player", "Select Player", true)] string playerName)
+        {
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+            var response = await BotCommandLogic.GetPlayerStats(teamId, playerName);
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent("Hehe"));
+        }
     }
 
     public class FetchSubscribedTeamsAutoComplete : IAutocompleteProvider
@@ -130,6 +140,32 @@ namespace DiscordBot
                 foreach (var team in competitionTeams)
                 {
                     choices.Add(new DiscordAutoCompleteChoice(team.name, team.id));
+                }
+                return choices;
+            }
+        }
+    }
+
+    public class FetchPlayerNamesAutoComplete : IAutocompleteProvider
+    {
+        List<string> playerNames = new List<string>(25);
+        public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
+        {
+            playerNames.Clear();
+            await BotCommandLogic.GetPlayerNamesFromCompetitionAndTeam(ctx.Options[0].Value.ToString(), (long)ctx.Options[1].Value, playerNames);
+
+            if (playerNames.Count == 0)
+            {
+                return new List<DiscordAutoCompleteChoice>() { new DiscordAutoCompleteChoice("Sorry, Unable to Fetch Players", -1) };
+            }
+            else
+            {
+                List<DiscordAutoCompleteChoice> choices = new List<DiscordAutoCompleteChoice>(playerNames.Count);
+                foreach (var playerName in playerNames)
+                {
+                    choices.Add(new DiscordAutoCompleteChoice(playerName, playerName));
+                    if (choices.Count >= 25)
+                        break;
                 }
                 return choices;
             }

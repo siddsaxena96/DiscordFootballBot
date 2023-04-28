@@ -410,12 +410,12 @@ namespace DiscordBot
                 List<string> tableHeader = new();
                 if (player.statistics[0].games.position != "Goalkeeper")
                 {
-                    tableHeader.AddRange(new List<string> { "Comp", "Team", "App", "St", "Min", "G", "A", "P", "KP", "DA", "DS", "Tck", "Int" });
+                    tableHeader.AddRange(new List<string> { "Competition", "Team", "App", "Start", "Minutes", "Gls", "Ast", "Pass", "K.Pass", "Drib Att", "Drib Succ", "Tck", "Int" });
                 }
                 else
                 {
                     isKeeper = true;
-                    tableHeader.AddRange(new List<string> { "Comp", "Team", "App", "St", "Min", "Sav", "GC", "P", "KP", "A", "G" });
+                    tableHeader.AddRange(new List<string> { "Competition", "Team", "App", "Start", "Minutes", "Sav", "Gls Conc", "Pass", "K.Pass", "Ast", "Gls" });
                 }
                 foreach (var competitionStats in player.statistics)
                 {

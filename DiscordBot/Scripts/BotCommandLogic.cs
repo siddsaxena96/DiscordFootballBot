@@ -9,7 +9,7 @@ namespace DiscordBot
         private static Dictionary<string, List<Team>> _footballDataOrgTeamsCache = new(5);
         private static Dictionary<int, int> _footballDataOrgTeamIdToAPIFootballTeamId = new(100);
 
-        private static List<ResponsePlayerStats> _nameMatchHelper = new(5);
+        private static List<ResponsePlayerStats> _playerStatsHelper = new(25);
 
         private static List<SubscriptionDetails> _subscriptions = new(5);
         private static List<List<string>> _tableData = new(5);
@@ -181,7 +181,7 @@ namespace DiscordBot
                 }
                 CreateTable(_tableData, stringsToSendBack, 1500);
 
-                return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToIST(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToIST(competitionStandings.season.endDate)}|\n";
+                return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToDDMMYYYY(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToDDMMYYYY(competitionStandings.season.endDate)}|\n";
             }
             catch (Exception ex)
             {
@@ -223,7 +223,7 @@ namespace DiscordBot
                 {
                     Console.WriteLine($"Could not refresh teams cache {ex.Message}");
                     return;
-                }                
+                }
             }
 
             await Task.Delay(TimeSpan.FromMinutes(1)); //Only 10 calls allowed per minute 
@@ -255,7 +255,7 @@ namespace DiscordBot
                             Console.WriteLine($"{team.team.name} - {teamToMatch.team.name}");
                         }
                     }
-                }                
+                }
             }
         }
 
@@ -331,7 +331,7 @@ namespace DiscordBot
                     pos++;
                 }
                 CreateTable(_tableData, responseStrings, 1800);
-                return $"{topScorers.competition.name}\t|Start Date : {FormatStringToIST(topScorers.season.startDate)}|\t|End Date : {FormatStringToIST(topScorers.season.endDate)}|\n";
+                return $"{topScorers.competition.name}\t|Start Date : {FormatStringToDDMMYYYY(topScorers.season.startDate)}|\t|End Date : {FormatStringToDDMMYYYY(topScorers.season.endDate)}|\n";
             }
             catch (Exception ex)
             {
@@ -340,62 +340,43 @@ namespace DiscordBot
             }
         }
 
-        public async static Task<string> GetPlayerStats(long teamId, string playerName)
+        public async static Task<string> GetPlayerStats(int playerIndex, List<string> responseStrings)
         {
-            if (_footballDataOrgTeamIdToAPIFootballTeamId.TryGetValue(Convert.ToInt32(teamId), out int teamIdAPIFootball))
+            var player = _playerStatsHelper[playerIndex];
+            _tableData.Clear();
+            _tableData.Add(new() { "Player Name", "DOB", "Age", "Nationality", "Height", "Weight" });
+            _tableData.Add(new() { player.player.firstname + " " + player.player.lastname, FormatStringToDDMMYYYY(player.player.birth.date), player.player.age.ToString(), player.player.nationality ?? "NA", player.player.height ?? "NA", player.player.weight ?? "NA" });
+            CreateTable(_tableData, responseStrings, 1800);
+            if (player.statistics.Count > 0)
             {
-                Console.WriteLine(teamIdAPIFootball);
-                string url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}";
-                var response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
-                if (response == "FAIL")
-                    return "Sorry, Unable to fetch stats at the moment";
-                try
+                bool isKeeper = false;
+                List<string> tableHeader = new();
+                if (player.statistics[0].games.position != "Goalkeeper")
                 {
-                    _nameMatchHelper.Clear();
-                    var teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
-                    _nameMatchHelper.AddRange(teamPlayersResponse.response);
-
-                    while (teamPlayersResponse.paging.current < teamPlayersResponse.paging.total)
-                    {
-                        url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}&page={teamPlayersResponse.paging.current + 1}";
-                        response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
-
-                        if (response == "FAIL") break;
-
-                        teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
-                        _nameMatchHelper.AddRange(teamPlayersResponse.response);
-                    }
-
-                    for (int i = _nameMatchHelper.Count - 1; i >= 0; i--)
-                    {
-                        ResponsePlayerStats teamPlayer = _nameMatchHelper[i];
-                        string fname1 = teamPlayer.player.firstname.Split(" ")[0];
-                        string fname2 = playerName.Split(" ")[0];
-                        if (fname1.ToUpper() != fname2.ToUpper())
-                            _nameMatchHelper.RemoveAt(i);
-                    }
-
-                    int matchScore = int.MaxValue;
-                    ResponsePlayerStats playerStats = null;
-
-                    foreach (var teamPlayer in _nameMatchHelper)
-                    {
-                        Console.WriteLine($"Matching {playerName} and {teamPlayer.player.firstname + " " + teamPlayer.player.lastname} Score = {LevenshteinDistance(playerName.ToUpper(), (teamPlayer.player.firstname + " " + teamPlayer.player.lastname).ToUpper())}");
-                        int score = LevenshteinDistance(playerName.ToUpper(), (teamPlayer.player.firstname + " " + teamPlayer.player.lastname).ToUpper());
-                        if (score < matchScore)
-                        {
-                            matchScore = score;
-                            playerStats = teamPlayer;
-                        }
-                    }
-
-                    if (matchScore < int.MaxValue)
-                        Console.WriteLine($"Player Found = {playerStats.player.name}");
+                    tableHeader.AddRange(new List<string> { "Comp", "Team", "App", "St", "Min", "G", "A", "P", "KP", "DA", "DS", "Tck", "Int" });
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine(ex.Message);
-                    return "Sorry, Unable to fetch stats at the moment";
+                    isKeeper = true;
+                    tableHeader.AddRange(new List<string> { "Comp", "Team", "App", "St", "Min", "Sav", "GC", "P", "KP", "A", "G" });
+                }
+                foreach (var competitionStats in player.statistics)
+                {
+                    _tableData.Clear();
+                    _tableData.Add(tableHeader);
+                    if (!isKeeper)
+                    {
+                        _tableData.Add(new() { competitionStats.league.name,competitionStats.team.name,competitionStats.games.appearences,competitionStats.games.lineups,competitionStats.games.minutes,
+                            competitionStats.goals.total??"NA",competitionStats.goals.assists??"NA",competitionStats.passes.total??"NA",competitionStats.passes.key??"NA",
+                            competitionStats.dribbles.attempts??"NA",competitionStats.dribbles.success??"NA",competitionStats.tackles.total??"NA",competitionStats.tackles.interceptions??"NA"});
+                    }
+                    else
+                    {
+                        _tableData.Add(new() { competitionStats.league.name, competitionStats.team.name, competitionStats.games.appearences, competitionStats.games.lineups, competitionStats.games.minutes,
+                            competitionStats.goals.saves??"NA",competitionStats.goals.conceded??"NA",competitionStats.passes.total??"NA",competitionStats.passes.key??"NA",
+                            competitionStats.goals.assists??"NA",competitionStats.goals.total??"NA"});
+                    }
+                    CreateTable(_tableData, responseStrings, 1800);
                 }
             }
             return "hehe";
@@ -460,7 +441,8 @@ namespace DiscordBot
                     tableString = "";
                 }
             }
-            stringsToSendBack.Add(tableString);
+            if (tableString != "")
+                stringsToSendBack.Add(tableString);
         }
         public static string FormatTimeToIST(DateTime utcDate)
         {
@@ -468,28 +450,56 @@ namespace DiscordBot
             DateTime istDateTime = TimeZoneInfo.ConvertTimeFromUtc(utcDate, istTimeZone);
             return istDateTime.ToString("dd/MM/yyyy \n\tHH:mm") + " Hrs";
         }
-        private static string FormatStringToIST(string yyyymmdd)
+        private static string FormatStringToDDMMYYYY(string yyyymmdd)
         {
             DateTime date = DateTime.ParseExact(yyyymmdd, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             return date.ToString("dd-MM-yyyy");
         }
 
-        public async static Task GetPlayerNamesFromCompetitionAndTeam(string competitionId, long teamId, List<string> playerNames)
+        public async static Task GetPlayerNamesFromTeam(long teamId, List<(int playerIndex, string playerName)> playerNames)
         {
-            if (_footballDataOrgTeamsCache.TryGetValue(competitionId, out var teams))
+            if (_footballDataOrgTeamIdToAPIFootballTeamId.TryGetValue(Convert.ToInt32(teamId), out int teamIdAPIFootball))
             {
-                foreach (var team in teams)
+                string url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}";
+                var response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
+
+                if (response == "FAIL") return;
+
+                var teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
+                _playerStatsHelper.Clear();
+
+                while (teamPlayersResponse.paging.current <= teamPlayersResponse.paging.total)
                 {
-                    if (team.id == teamId)
+                    _playerStatsHelper.AddRange(teamPlayersResponse.response);
+
+                    if (teamPlayersResponse.paging.current == teamPlayersResponse.paging.total) break;
+
+                    url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}&page={teamPlayersResponse.paging.current + 1}";
+                    response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
+
+                    if (response == "FAIL") break;
+
+                    teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
+                }
+                //Cleaning up list since we only have 25 options
+                for (int i = _playerStatsHelper.Count - 1; i >= 0; i--)
+                {
+                    ResponsePlayerStats player = _playerStatsHelper[i];
+                    if (player.statistics.Count == 0
+                        || string.IsNullOrEmpty(player.statistics[0].games.minutes) || Convert.ToInt32(player.statistics[0].games.minutes) < 90
+                        || string.IsNullOrEmpty(player.statistics[0].games.appearences) || Convert.ToInt32(player.statistics[0].games.appearences) < 5)
                     {
-                        foreach (var player in team.squad)
-                        {
-                            playerNames.Add(player.name);
-                        }
+                        _playerStatsHelper.RemoveAt(i);
                     }
                 }
+
+                playerNames.Clear();
+                for (int i = 0; i < _playerStatsHelper.Count; i++)
+                {
+                    var playerName = _playerStatsHelper[i].player.firstname + " " + _playerStatsHelper[i].player.lastname;
+                    playerNames.Add((i, playerName));
+                }
             }
-            return;
         }
         static int LevenshteinDistance(string s, string t)
         {

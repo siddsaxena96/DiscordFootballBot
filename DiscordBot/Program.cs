@@ -10,7 +10,7 @@ namespace DiscordBot
         static async Task Main(string[] args)
         {
             _botController = new BotController();
-            _botController.RunAsync().GetAwaiter().GetResult();
+            _botController.InitBot().GetAwaiter().GetResult();
 
             Timer dailyTimer = new Timer(async (state) => await DailyTask(), null, TimeSpan.Zero, TimeSpan.FromHours(24));
             

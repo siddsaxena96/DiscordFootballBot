@@ -19,7 +19,7 @@ namespace DiscordBot
         private static ConfigurationStruct _configuration;
         public static ConfigurationStruct Configuration => _configuration;
 
-        public async Task RunAsync()
+        public async Task InitBot()
         {
             var json = string.Empty;
             using var fs = File.OpenRead("config.json");

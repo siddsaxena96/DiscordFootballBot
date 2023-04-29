@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 namespace DiscordBot
 {
     [Serializable]
-    public struct ConfigurationStruct
+    public class ConfigurationStruct
     {
         [JsonProperty("token")]
         public string Token { get; private set; }
@@ -29,6 +29,9 @@ namespace DiscordBot
 
         [JsonProperty("footychannelid")]
         public ulong FootyChannelId { get; private set; }
+        
+        [JsonProperty("adminusers")]
+        public List<ulong> AdminUsers { get; private set; }
     }
     [Serializable]
     public class SubscriptionDetails

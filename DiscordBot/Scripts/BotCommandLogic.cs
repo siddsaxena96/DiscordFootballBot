@@ -166,7 +166,7 @@ namespace DiscordBot
                 var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(response);
 
                 _tableData.Clear();
-                _tableData.Add(new() { "Pos", "Team", "Played", "Win", "Draw", "Loss", "Gls For", "Gls Agnst", "Goal Diff", "Points", "Last 5" });
+                _tableData.Add(new() { "Pos", "Team", "Played", "Win", "Draw", "Loss", "GF", "GA", "GD", "Pts", "Last 5" });
                 stringsToSendBack.Clear();
 
                 var competitionTable = competitionStandings.standings[0].table;
@@ -175,7 +175,7 @@ namespace DiscordBot
                 {
                     _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form ?? "NA" });
                 }
-                CreateTable(_tableData, stringsToSendBack, 1500);
+                CreateTable(_tableData, stringsToSendBack, 1700);
 
                 return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToDDMMYYYY(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToDDMMYYYY(competitionStandings.season.endDate)}|\n";
             }
@@ -244,11 +244,11 @@ namespace DiscordBot
                         if (team.position == teamToMatch.rank.ToString())
                         {
                             matched++;
-                            _footballDataOrgTeamIdToAPIFootballTeamId.Add(team.team.id, teamToMatch.team.id);                            
+                            _footballDataOrgTeamIdToAPIFootballTeamId.Add(team.team.id, teamToMatch.team.id);
                         }
                     }
                 }
-            }    
+            }
         }
 
         private static int GetCurrentFootballSeason()
@@ -332,7 +332,7 @@ namespace DiscordBot
             }
         }
         public async static Task GetPlayerNamesFromTeam(long teamId, List<(int playerIndex, string playerName)> playerNames)
-        {                      
+        {
             if (_footballDataOrgTeamIdToAPIFootballTeamId.TryGetValue(Convert.ToInt32(teamId), out int teamIdAPIFootball))
             {
                 Console.WriteLine($"Matched {teamId} to {teamIdAPIFootball}");
@@ -429,9 +429,14 @@ namespace DiscordBot
                     CreateTable(_tableData, responseStrings, 1800);
                 }
             }
-            return "hehe";
+            int curSeason = GetCurrentFootballSeason();
+            return $"Displaying Stats For {curSeason} - {curSeason + 1} Season";
         }
-
+        
+        public static void ClearTeamStatsCache()
+        {
+            _teamPlayersCache.Clear();
+        }
         private static void CreateTable(List<List<string>> tableData, List<string> stringsToSendBack, int charLim)
         {
             string tableString = "";

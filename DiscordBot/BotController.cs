@@ -25,7 +25,6 @@ namespace DiscordBot
             using var fs = File.OpenRead("config.json");
             using var sr = new StreamReader(fs, new UTF8Encoding(false));
             json = await sr.ReadToEndAsync();
-
             _configuration = JsonConvert.DeserializeObject<ConfigurationStruct>(json);
 
             var config = new DiscordConfiguration()

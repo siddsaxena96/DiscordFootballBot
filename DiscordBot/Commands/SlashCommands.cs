@@ -98,13 +98,55 @@ namespace DiscordBot
             [Autocomplete(typeof(FetchPlayerNamesAutoComplete))][Option("Player", "Select Player", true)] long playerIndex)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
-            responseStrings.Clear();
-            var response = await BotCommandLogic.GetPlayerStats(Convert.ToInt32(playerIndex), responseStrings);
-            foreach (var responseString in responseStrings)
+            if (teamId == -1 || playerIndex == -1)
             {
-                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
+                await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent("Sorry, unable to load options at this time"));
             }
-            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent("Hehe"));
+            else
+            {
+                responseStrings.Clear();
+                var response = await BotCommandLogic.GetPlayerStats(Convert.ToInt32(playerIndex), responseStrings);
+                foreach (var responseString in responseStrings)
+                {
+                    await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
+                }
+                await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
+            }
+        }
+
+        [SlashCommand($"Clear_Player_Stats_Cache","Clears the cached player stats ( requires Admin User)")]        
+        public async Task ClearPlayerStatsCache(InteractionContext interactionContext)
+        {
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+            string response = "";
+            if (BotController.Configuration.AdminUsers.Contains(interactionContext.User.Id))
+            {
+                response = "Player Stats Cache has been reset";
+                BotCommandLogic.ClearTeamStatsCache();
+            }
+            else
+            {
+                response = "Sorry, only admins can use this command";
+            }
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
+
+        }
+
+        [SlashCommand($"Reset_League_Teams_Cache", "Reloads team data for all leagues ( requires Admin User)")]
+        public async Task ResetLeagueTeamDataCache(InteractionContext interactionContext)
+        {   
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+            string response = "";
+            if (BotController.Configuration.AdminUsers.Contains(interactionContext.User.Id))
+            {
+                await BotCommandLogic.RefreshTeamsCache();
+                response = "Player Stats Cache has been reset";                
+            }
+            else
+            {
+                response = "Sorry, only admins can use this command";
+            }
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));                       
         }
     }
 
@@ -153,7 +195,7 @@ namespace DiscordBot
 
     public class FetchPlayerNamesAutoComplete : IAutocompleteProvider
     {
-        List<(int playerIndex,string playerName)> playerNames = new(25);
+        List<(int playerIndex, string playerName)> playerNames = new(25);
         public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
             playerNames.Clear();
@@ -176,5 +218,5 @@ namespace DiscordBot
                 return choices;
             }
         }
-    }
+    }    
 }

@@ -188,7 +188,7 @@ namespace DiscordBot
 
         public async static Task RefreshTeamsCache()
         {
-            var values = Enum.GetValues(typeof(APIFootballLeagueOptions));
+            var values = Enum.GetValues(typeof(FDataLeagueOptions));
 
             foreach (var value in values)
             {
@@ -209,10 +209,7 @@ namespace DiscordBot
 
                     foreach (var team in competitionTeams.teams)
                     {
-                        if (!listOfTeams.Contains(team))
-                        {
-                            listOfTeams.Add(team);
-                        }
+                        listOfTeams.Add(team);
                     }
                 }
                 catch (Exception ex)
@@ -222,7 +219,8 @@ namespace DiscordBot
                 }
             }
 
-            await Task.Delay(TimeSpan.FromMinutes(1)); //Only 10 calls allowed per minute 
+            //await Task.Delay(TimeSpan.FromMinutes(1)); //Only 10 calls allowed per minute 
+            _footballDataOrgTeamIdToAPIFootballTeamId.Clear();
 
             foreach (var value in values)
             {
@@ -239,7 +237,6 @@ namespace DiscordBot
                 var apiFootballStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponseAPIFootball>(standingsAPIFootball);
 
                 int matched = 0;
-                _footballDataOrgTeamIdToAPIFootballTeamId.Clear();
                 foreach (var team in competitionStandings.standings[0].table)
                 {
                     foreach (var teamToMatch in apiFootballStandings.response[0].league.standings[0])
@@ -247,12 +244,11 @@ namespace DiscordBot
                         if (team.position == teamToMatch.rank.ToString())
                         {
                             matched++;
-                            _footballDataOrgTeamIdToAPIFootballTeamId.Add(team.team.id, teamToMatch.team.id);
-                            Console.WriteLine($"{team.team.name} - {teamToMatch.team.name}");
+                            _footballDataOrgTeamIdToAPIFootballTeamId.Add(team.team.id, teamToMatch.team.id);                            
                         }
                     }
                 }
-            }
+            }    
         }
 
         private static int GetCurrentFootballSeason()
@@ -336,20 +332,22 @@ namespace DiscordBot
             }
         }
         public async static Task GetPlayerNamesFromTeam(long teamId, List<(int playerIndex, string playerName)> playerNames)
-        {
+        {                      
             if (_footballDataOrgTeamIdToAPIFootballTeamId.TryGetValue(Convert.ToInt32(teamId), out int teamIdAPIFootball))
             {
+                Console.WriteLine($"Matched {teamId} to {teamIdAPIFootball}");
                 _playerStatsHelper.Clear();
 
                 if (_teamPlayersCache.TryGetValue(teamIdAPIFootball, out var playerList))
                 {
+                    Console.WriteLine($"Fom Dict");
                     _playerStatsHelper.AddRange(playerList);
                 }
                 else
                 {
                     string url = $"players?team={teamIdAPIFootball}&season={GetCurrentFootballSeason()}";
                     var response = await APIController.GetRequestAsync(url, APIChoice.APIFootball);
-
+                    Console.WriteLine(response);
                     if (response == "FAIL") return;
 
                     var teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
@@ -367,6 +365,7 @@ namespace DiscordBot
 
                         teamPlayersResponse = JsonConvert.DeserializeObject<TeamPlayersResponseAPIFootball>(response);
                     }
+                    Console.WriteLine($"FETCHED PLAYERS = {_playerStatsHelper.Count}");
                     _teamPlayersCache.Add(teamIdAPIFootball, new(_playerStatsHelper));
                 }
 

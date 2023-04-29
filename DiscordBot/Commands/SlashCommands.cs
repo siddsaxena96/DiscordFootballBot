@@ -157,6 +157,7 @@ namespace DiscordBot
         public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
             playerNames.Clear();
+            Console.WriteLine($"GETTING {(long)ctx.Options[1].Value} ");
             await BotCommandLogic.GetPlayerNamesFromTeam((long)ctx.Options[1].Value, playerNames);
 
             if (playerNames.Count == 0)

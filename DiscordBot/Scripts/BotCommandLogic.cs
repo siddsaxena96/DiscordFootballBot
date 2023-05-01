@@ -219,7 +219,7 @@ namespace DiscordBot
                 }
             }
 
-            //await Task.Delay(TimeSpan.FromMinutes(1)); //Only 10 calls allowed per minute 
+            await Task.Delay(TimeSpan.FromMinutes(1)); //Only 10 calls allowed per minute 
             _footballDataOrgTeamIdToAPIFootballTeamId.Clear();
 
             foreach (var value in values)

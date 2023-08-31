@@ -1,6 +1,8 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
+using System.Text.RegularExpressions;
+using System;
 
 namespace DiscordBot
 {
@@ -28,6 +30,39 @@ namespace DiscordBot
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
 
+        [SlashCommand("Show_Team_Schedule", "Shows all scheduled fixtures for the selected team")]
+        public async Task ShowTeamSchedule(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague,
+            [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))]
+            [Option("Team", "SelectTeam", true)] string teamHref)
+        {
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+
+            string response = "FF";
+            if (string.IsNullOrEmpty(teamHref))
+            {
+                response = "Sorry Unable to Fetch teams at this time";
+            }
+            else
+            {
+                string pattern = @"/id/(\d+)/";
+                System.Text.RegularExpressions.Match match = Regex.Match(teamHref, pattern);
+
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    string extractedId = match.Groups[1].Value;
+                    Console.WriteLine("Extracted ID: " + extractedId);
+                    responseStrings.Clear();
+                    response = await BotCommandLogic.GetTeamFixtures(extractedId,responseStrings);
+                    foreach (var responseString in responseStrings)
+                    {
+                        await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
+                    }
+                }
+            }
+
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
+        }
+
         [SlashCommand("Show_Scheduled", "Show all scheduled fixtures for a subscribed team")]
         public async Task ShowScheduled(InteractionContext interactionContext,
             [Autocomplete(typeof(FetchSubscribedTeamsAutoComplete))]
@@ -41,7 +76,7 @@ namespace DiscordBot
             }
             else
             {
-                response = await BotCommandLogic.GetAllScheduledFixturesForTeam(teamId);
+                response = await BotCommandLogic.GetAllScheduledFixturesForTeam(teamId);              
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
@@ -66,7 +101,7 @@ namespace DiscordBot
         }
 
         [SlashCommand("Show_Standings", "Show current standings of the selected league")]
-        public async Task ShowStandings(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague)
+        public async Task ShowStandings(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             responseStrings.Clear();
@@ -114,7 +149,7 @@ namespace DiscordBot
             }
         }
 
-        [SlashCommand($"Clear_Player_Stats_Cache","Clears the cached player stats ( requires Admin User)")]        
+        [SlashCommand($"Clear_Player_Stats_Cache", "Clears the cached player stats ( requires Admin User)")]
         public async Task ClearPlayerStatsCache(InteractionContext interactionContext)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
@@ -134,19 +169,19 @@ namespace DiscordBot
 
         [SlashCommand($"Reset_League_Teams_Cache", "Reloads team data for all leagues ( requires Admin User)")]
         public async Task ResetLeagueTeamDataCache(InteractionContext interactionContext)
-        {   
+        {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             string response = "";
             if (BotController.Configuration.AdminUsers.Contains(interactionContext.User.Id))
             {
                 await BotCommandLogic.RefreshTeamsCache();
-                response = "Player Stats Cache has been reset";                
+                response = "Player Stats Cache has been reset";
             }
             else
             {
                 response = "Sorry, only admins can use this command";
             }
-            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));                       
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
     }
 
@@ -186,7 +221,7 @@ namespace DiscordBot
                 List<DiscordAutoCompleteChoice> choices = new List<DiscordAutoCompleteChoice>(competitionTeams.Count);
                 foreach (var team in competitionTeams)
                 {
-                    choices.Add(new DiscordAutoCompleteChoice(team.name, team.id));
+                    choices.Add(new DiscordAutoCompleteChoice(team.teamName, team.teamHref));
                 }
                 return choices;
             }
@@ -218,5 +253,5 @@ namespace DiscordBot
                 return choices;
             }
         }
-    }    
+    }
 }

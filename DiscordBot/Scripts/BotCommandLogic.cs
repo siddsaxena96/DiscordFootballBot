@@ -1,12 +1,15 @@
 ﻿using DSharpPlus.Entities;
+using HtmlAgilityPack;
 using Newtonsoft.Json;
+using System;
 using System.Globalization;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DiscordBot
 {
     public static class BotCommandLogic
     {
-        private static Dictionary<string, List<Team>> _footballDataOrgTeamsCache = new(5);
+        private static Dictionary<string, List<Team_Old>> _footballDataOrgTeamsCache = new(5);
         private static Dictionary<int, int> _footballDataOrgTeamIdToAPIFootballTeamId = new(100);
 
         private static Dictionary<int, List<ResponsePlayerStats>> _teamPlayersCache = new(20);
@@ -15,8 +18,15 @@ namespace DiscordBot
 
         private static List<SubscriptionDetails> _subscriptions = new(5);
         private static List<List<string>> _tableData = new(5);
+        private static List<string> _stringList = new(5);
+        private static List<Team> _teamList = new(5);
         private static string subscriptionFileLocation = "./subscription.json";
+        private static HttpClient _httpClient;
 
+        public static void Init()
+        {
+            _httpClient = new HttpClient();
+        }
         public async static Task<string> SubscribeTo(string competitionId, long teamId)
         {
             foreach (var team in _footballDataOrgTeamsCache[competitionId])
@@ -52,7 +62,7 @@ namespace DiscordBot
                 fs.Close();
             }
         }
-        private async static Task<bool> UpdateSubscriptionList(Team team)
+        private async static Task<bool> UpdateSubscriptionList(Team_Old team)
         {
             await GetSubscriptions(_subscriptions);
 
@@ -124,66 +134,92 @@ namespace DiscordBot
 
         public async static Task<IReadOnlyList<Team>> GetTeamsFromCompetition(string competitionCode)
         {
-            if (_footballDataOrgTeamsCache.TryGetValue(competitionCode, out var teamList)) return teamList;
+            var leagueTableString = BotController.Configuration.baseURL + BotController.Configuration.leagueTableURL.Replace("***", competitionCode); ;
+            var html = _httpClient.GetStringAsync(leagueTableString).Result;
+            var htmlDocument = new HtmlDocument();
+            htmlDocument.LoadHtml(html);
 
-            string url = $"competitions/{competitionCode}/teams";
-            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
+            var leagueTableLeft = htmlDocument.DocumentNode.SelectSingleNode("//table[contains(@class, 'Table Table--align-right Table--fixed Table--fixed-left')]");
+            if (leagueTableLeft == null) return null;
+            var leagueTeams = leagueTableLeft.SelectNodes("//span[@class='hide-mobile']/a[@class='AnchorLink']");
+            if (leagueTeams == null) return null;
 
-            if (response == "FAIL") return null;
+            _teamList.Clear();
 
-            try
+            foreach (var team in leagueTeams)
             {
-                _footballDataOrgTeamsCache.Add(competitionCode, new(20));
-                var listOfTeams = _footballDataOrgTeamsCache[competitionCode];
-
-
-                var competitionTeams = JsonConvert.DeserializeObject<CompetitionTeamsResponse>(response);
-
-                foreach (var team in competitionTeams.teams)
-                {
-                    if (!listOfTeams.Contains(team))
-                    {
-                        listOfTeams.Add(team);
-                    }
-                }
-                return listOfTeams;
+                string teamName = team.InnerText;
+                string hrefValue = team.GetAttributeValue("href", "");
+                _teamList.Add(new(teamName, hrefValue));
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in Trying to get competition teams {ex.Message}");
-                return null;
-            }
+            return _teamList;
         }
         public async static Task<string> GetStandingsForCompetition(string competitionCode, List<string> stringsToSendBack)
         {
-            string url = $"competitions/{competitionCode}/standings";
-            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
+            var leagueTableString = BotController.Configuration.baseURL + BotController.Configuration.leagueTableURL.Replace("***", competitionCode); ;
+            var html = _httpClient.GetStringAsync(leagueTableString).Result;
+            var htmlDocument = new HtmlDocument();
+            htmlDocument.LoadHtml(html);
 
-            if (response == "FAIL") return "Sorry, Unable to fetch standings";
+            var leagueTableLeft = htmlDocument.DocumentNode.SelectSingleNode("//table[contains(@class, 'Table Table--align-right Table--fixed Table--fixed-left')]");
+            if (leagueTableLeft == null) return "Sorry, Unable to fetch standings";
+            var leagueTeams = leagueTableLeft.SelectNodes("//span[@class='hide-mobile']/a[@class='AnchorLink']");
 
-            try
+            var leagueTableRight = htmlDocument.DocumentNode.SelectSingleNode("//table[contains(@class, 'Table Table--align-right')]");
+            if (leagueTableRight == null) return "Sorry, Unable to fetch standings";
+            var leagueTeamStats = leagueTableRight.SelectNodes("//span[contains(@class, 'stat-cell')]");
+
+            if (leagueTeams == null || leagueTeams.Count == 0 || leagueTeamStats == null || leagueTeamStats.Count == 0) return "Sorry, Unable to fetch standings";
+
+            var seasonYear = htmlDocument.DocumentNode.SelectSingleNode("//select[@aria-label='Standings Season']/option[@selected]").InnerText;
+            var competitionName = htmlDocument.DocumentNode.SelectSingleNode("//select[@aria-label='Standings Season Type']/option[@selected]").InnerText;
+
+            int positionCounter = 1;
+            _tableData.Clear();
+            _tableData.Add(new() { "Pos", "Team", "Played", "Win", "Draw", "Loss", "GF", "GA", "GD", "Pts" });
+            stringsToSendBack.Clear();
+            int statCounter = 0;
+            for (int i = 0; i < leagueTeams.Count; i++)
             {
-                var competitionStandings = JsonConvert.DeserializeObject<CompetitionStandingsResponse>(response);
-
-                _tableData.Clear();
-                _tableData.Add(new() { "Pos", "Team", "Played", "Win", "Draw", "Loss", "GF", "GA", "GD", "Pts", "Last 5" });
-                stringsToSendBack.Clear();
-
-                var competitionTable = competitionStandings.standings[0].table;
-
-                foreach (var entry in competitionTable)
+                _stringList.Clear();
+                _stringList.Add(positionCounter.ToString());
+                _stringList.Add(leagueTeams[i].InnerText);
+                for (int j = statCounter; j <= statCounter + 7; j++)
                 {
-                    _tableData.Add(new() { entry.position, entry.team.name, entry.playedGames, entry.won, entry.draw, entry.lost, entry.goalsFor, entry.goalsAgainst, entry.goalDifference, entry.points, entry.form ?? "NA" });
+                    _stringList.Add(leagueTeamStats[j].InnerText);
                 }
-                CreateTable(_tableData, stringsToSendBack, 1700);
+                statCounter += 8;
+                positionCounter++;
+                _tableData.Add(new(_stringList));
+            }
+            CreateTable(_tableData, stringsToSendBack, 1800);
 
-                return $"{competitionStandings.competition.name}\t|Start Date : {FormatStringToDDMMYYYY(competitionStandings.season.startDate)}|\t|End Date : {FormatStringToDDMMYYYY(competitionStandings.season.endDate)}|\n";
-            }
-            catch (Exception ex)
+            return $"{competitionName}\t| {seasonYear} |\n";
+        }
+
+        public async static Task<string> GetTeamFixtures(string extractedId, List<string> responseStrings)
+        {
+            var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", extractedId);
+            var html = _httpClient.GetStringAsync(fixturesUrl).Result;
+            var htmlDocument = new HtmlDocument();
+            htmlDocument.LoadHtml(html);
+
+            var rows = htmlDocument.DocumentNode.SelectNodes("//tbody[@class='Table__TBODY']//tr");
+            _tableData.Clear();
+            _tableData.Add(new() { "DATE", "HOME", "V", "AWAY", "TIME", "COMPETITION" });
+            foreach(var row in rows )
             {
-                Console.WriteLine($"Error in printing table {ex.Message}");
-                return $"Sorry, Unable to print standings right now";
+                var date = row.SelectSingleNode(".//div[@class='matchTeams']/text()").InnerText;
+                var home_team = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
+                var away_team = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
+                var home_team_logo = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/img/@src");
+                var away_team_logo = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/img/@src");
+                var time = row.SelectSingleNode(".//td[@class='Table__TD'][5]/a[@class='AnchorLink']/text()").InnerText;
+                var competition = row.SelectSingleNode(".//td[@class='Table__TD'][6]/span/text()").InnerText;
+                _tableData.Add(new() { date, home_team, "V", away_team, time, competition });                
             }
+            CreateTable(_tableData, responseStrings, 1800);
+            return "FAFA";
         }
 
         public async static Task RefreshTeamsCache()
@@ -432,7 +468,7 @@ namespace DiscordBot
             int curSeason = GetCurrentFootballSeason();
             return $"Displaying Stats For {curSeason} - {curSeason + 1} Season";
         }
-        
+
         public static void ClearTeamStatsCache()
         {
             _teamPlayersCache.Clear();
@@ -465,10 +501,10 @@ namespace DiscordBot
             tableString += "+";
             for (int col = 0; col < numCols; col++)
             {
-                tableString += (new string('-', colWidths[col]) + "+");
+                tableString += new string('-', colWidths[col] + 2) + "+";
             }
             tableString += "\n";
-            int rowCounter = 0;
+
             // Set up table body
             for (int row = 0; row < numRows; row++)
             {
@@ -476,9 +512,9 @@ namespace DiscordBot
                 for (int col = 0; col < numCols; col++)
                 {
                     string cellValue = tableData[row][col];
-                    tableString += cellValue;
-                    tableString += new string('\u0020', colWidths[col] - cellValue.Length) + "|";
-                    //message += ("\u0020" + cellValue.PadRight(colWidths[col]) + "\u0020|");
+                    int padding = (colWidths[col] - cellValue.Length) / 2;
+                    string paddedValue = cellValue.PadLeft(padding + cellValue.Length).PadRight(colWidths[col]);
+                    tableString += " " + paddedValue + " |";
                 }
                 tableString += "\n";
 
@@ -486,17 +522,18 @@ namespace DiscordBot
                 tableString += ("+");
                 for (int col = 0; col < numCols; col++)
                 {
-                    tableString += (new string('-', colWidths[col]) + "+");
+                    tableString += new string('-', colWidths[col] + 2) + "+";
                 }
                 tableString += "\n";
-                rowCounter++;
+
                 if (tableString.Length >= charLim)
                 {
                     stringsToSendBack.Add(tableString);
                     tableString = "";
                 }
             }
-            if (tableString != "")
+
+            if (!string.IsNullOrEmpty(tableString))
                 stringsToSendBack.Add(tableString);
         }
         public static string FormatTimeToIST(DateTime utcDate)
@@ -509,6 +546,6 @@ namespace DiscordBot
         {
             DateTime date = DateTime.ParseExact(yyyymmdd, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             return date.ToString("dd-MM-yyyy");
-        }
+        }        
     }
 }

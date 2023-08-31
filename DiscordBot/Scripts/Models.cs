@@ -9,6 +9,14 @@ namespace DiscordBot
         [JsonProperty("token")]
         public string Token { get; private set; }
 
+        [JsonProperty("baseURL")]
+        public string baseURL { get; private set; }
+
+        [JsonProperty("leagueTableURL")]
+        public string leagueTableURL { get; private set; }
+        [JsonProperty("fixturesURL")]
+        public string fixturesURL { get; private set; }
+
         [JsonProperty("prefix")]
         public string Prefix { get; private set; }
 
@@ -17,10 +25,10 @@ namespace DiscordBot
 
         [JsonProperty("fdataapitoken")]
         public string FDataAPIToken { get; private set; }
-        
+
         [JsonProperty("apifootballendpoint")]
         public string APIFootbalAPIEndPoint { get; private set; }
-        
+
         [JsonProperty("apifootballtoken")]
         public string APIFootballToken { get; private set; }
 
@@ -29,19 +37,31 @@ namespace DiscordBot
 
         [JsonProperty("footychannelid")]
         public ulong FootyChannelId { get; private set; }
-        
+
         [JsonProperty("adminusers")]
         public List<ulong> AdminUsers { get; private set; }
     }
     [Serializable]
     public class SubscriptionDetails
     {
-        public Team team;
-        public SubscriptionDetails(Team team)
+        public Team_Old team;
+        public SubscriptionDetails(Team_Old team)
         {
             this.team = team;
         }
     }
+    public enum LeagueOptions
+    {
+        [ChoiceName("English Premier Leage")]
+        ENG,
+        [ChoiceName("La Liga")]
+        ESP,
+        [ChoiceName("Bundesliga")]
+        GER,
+        [ChoiceName("Serie A")]
+        ITA
+    }   
+ 
     public enum APIChoice
     {
         FootbalDataOrg,
@@ -77,7 +97,7 @@ namespace DiscordBot
         public FiltersTeamResponse filters { get; set; }
         public Competition competition { get; set; }
         public Season season { get; set; }
-        public List<Team> teams { get; set; }
+        public List<Team_Old> teams { get; set; }
     }
     [Serializable]
     public class TeamFixturesResponse
@@ -223,6 +243,18 @@ namespace DiscordBot
         public string crest { get; set; }
     }
     public class Team
+    {
+        public string teamName;
+        public string teamHref;
+
+        public Team(string teamName, string teamHref)
+        {
+            this.teamName = teamName;
+            this.teamHref = teamHref;
+        }
+    }
+
+    public class Team_Old
     {
         public Area area { get; set; }
         public int id { get; set; }
@@ -376,7 +408,7 @@ namespace DiscordBot
         public DateTime lastUpdated { get; set; }
     }
     #endregion
-    
+
     #region API-Football Models
     public class LeagueAPIFootball
     {
@@ -451,7 +483,7 @@ namespace DiscordBot
     public class ResponseAPIFootball
     {
         public LeagueAPIFootball league { get; set; }
-    }    
+    }
     public class TeamAPIFootball
     {
         public int id { get; set; }
@@ -519,7 +551,7 @@ namespace DiscordBot
         public string logo { get; set; }
         public string flag { get; set; }
         public object season { get; set; }
-    }    
+    }
 
     public class ParametersPlayerStats
     {
@@ -563,7 +595,7 @@ namespace DiscordBot
         public PlayerPlayerStats player { get; set; }
         public List<Statistic> statistics { get; set; }
     }
-   
+
     public class Shots
     {
         public string total { get; set; }
@@ -599,7 +631,7 @@ namespace DiscordBot
         public string total { get; set; }
         public string blocks { get; set; }
         public string interceptions { get; set; }
-    }    
+    }
 
     #endregion
 }

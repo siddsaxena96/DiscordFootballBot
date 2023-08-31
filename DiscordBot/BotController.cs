@@ -25,6 +25,7 @@ namespace DiscordBot
             using var fs = File.OpenRead("config.json");
             using var sr = new StreamReader(fs, new UTF8Encoding(false));
             json = await sr.ReadToEndAsync();
+            Console.Write(json);
             _configuration = JsonConvert.DeserializeObject<ConfigurationStruct>(json);
 
             var config = new DiscordConfiguration()
@@ -51,7 +52,7 @@ namespace DiscordBot
 
             _commands = _client.UseCommandsNext(commandsConfig);
             _commands.RegisterCommands<Commands>();
-            
+            BotCommandLogic.Init();
             var slashCommandsConfig = _client.UseSlashCommands();
             slashCommandsConfig.RegisterCommands<SlashCommands>(_configuration.ServerId);            
             slashCommandsConfig.AutocompleteErrored += AutoCompleteErr;

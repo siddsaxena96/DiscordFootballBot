@@ -98,13 +98,15 @@ namespace DiscordBot
                 htmlDocument.LoadHtml(html);
 
                 var row = htmlDocument.DocumentNode.SelectSingleNode("//tbody[@class='Table__TBODY']//tr");
-                var date = row.SelectSingleNode(".//div[@class='matchTeams']/text()").InnerText;
-                var home_team = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
-                var away_team = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
+                if (row == null) return;
+                var date = row.SelectSingleNode(".//div[@class='matchTeams']/text()")?.InnerText;
+                var home_team = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/text()")?.InnerText;
+                var away_team = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/text()")?.InnerText;
                 var home_team_logo = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/img/@src");
                 var away_team_logo = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/img/@src");
-                var time = row.SelectSingleNode(".//td[@class='Table__TD'][5]/a[@class='AnchorLink']/text()").InnerText;
-                var competition = row.SelectSingleNode(".//td[@class='Table__TD'][6]/span/text()").InnerText;
+                var time = row.SelectSingleNode(".//td[@class='Table__TD'][5]/a[@class='AnchorLink']/text()")?.InnerText;
+                var competition = row.SelectSingleNode(".//td[@class='Table__TD'][6]/span/text()")?.InnerText;
+                if (date == null || home_team == null || away_team == null || time == null || competition == null) return;
 
                 var matchTime = ConvertToUTCTime(date, time);
 
@@ -159,7 +161,7 @@ namespace DiscordBot
 
                 DateTime istTime = DateTime.ParseExact(timeString, "h:mm tt", CultureInfo.InvariantCulture);
 
-                DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);                
+                DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);
                 DateTime utcTime = TimeZoneInfo.ConvertTimeToUtc(istTime, istTimeZone);
                 Console.WriteLine($"{finalDateTime} - {utcTime}");
                 return utcTime;
@@ -342,11 +344,11 @@ namespace DiscordBot
         {
             var competitionCodes = Enum.GetNames(typeof(LeagueOptions));
             _teamDataCache.Clear();
-            foreach(var competitionCode in competitionCodes)
+            foreach (var competitionCode in competitionCodes)
             {
                 await GetTeamsFromCompetition(competitionCode);
             }
-            foreach(var kvp in _teamDataCache)
+            foreach (var kvp in _teamDataCache)
             {
                 Console.WriteLine($"{kvp.Key} - {kvp.Value.Count}");
             }

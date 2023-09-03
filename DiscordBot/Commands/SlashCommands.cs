@@ -61,7 +61,7 @@ namespace DiscordBot
             [Autocomplete(typeof(FetchSubscribedTeamsAutoComplete))]
             [Option("Team", "Select Team", true)] string teamId,
             [Option("NumMatches", "Optional, no value will show next match")] long numMatches = 0)
-        {            
+        {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             string response = "";
             if (teamId == "-1")
@@ -93,26 +93,27 @@ namespace DiscordBot
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
-
-        [SlashCommand("Show_Top_Scorer", "Shows current top goalscorers of the selected league")]
-        public async Task ShowTopScorers(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague)
+        
+        [SlashCommand("Show_League_Stats", "Shows current top goalscorers and assisters of the selected league")]
+        public async Task ShowLeagueStats(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             responseStrings.Clear();
-            string response = await BotCommandLogic.GetTopScorersForCompetition(selectedLeague.ToString(), responseStrings);
+            string response = await BotCommandLogic.GetLeagueStatsForCompetition(selectedLeague.ToString(), responseStrings, 0);
+            response = await BotCommandLogic.GetLeagueStatsForCompetition(selectedLeague.ToString(), responseStrings, 1);
             foreach (var responseString in responseStrings)
             {
                 await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
-
-        [SlashCommand("Show_Player_Stats", "Shows individual stats of the selected player")]
+       
+        /*[SlashCommand("Show_Player_Stats", "Shows individual stats of the selected player")]
         public async Task ShowPlayerStats(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague,
             [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))][Option("Team", "Select Team", true)] long teamId,
             [Autocomplete(typeof(FetchPlayerNamesAutoComplete))][Option("Player", "Select Player", true)] long playerIndex)
         {
-            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);x
             if (teamId == -1 || playerIndex == -1)
             {
                 await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent("Sorry, unable to load options at this time"));
@@ -127,7 +128,7 @@ namespace DiscordBot
                 }
                 await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
             }
-        }
+        }*/
 
         [SlashCommand($"Clear_Player_Stats_Cache", "Clears the cached player stats ( requires Admin User)")]
         public async Task ClearPlayerStatsCache(InteractionContext interactionContext)
@@ -192,22 +193,24 @@ namespace DiscordBot
 
     public class FetchCompetitionTeamsAutoComplete : IAutocompleteProvider
     {
+        private static List<DiscordAutoCompleteChoice> choices = new(5);
+
         public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
             var competitionTeams = await BotCommandLogic.GetTeamsFromCompetition(ctx.Options[0].Value.ToString());
+            choices.Clear();
             if (competitionTeams == null)
             {
-                return new List<DiscordAutoCompleteChoice>() { new DiscordAutoCompleteChoice("Sorry, Unable to Fetch Teams", -1) };
+                choices.Add(new DiscordAutoCompleteChoice("Sorry, Unable to Fetch Teams", -1));
             }
             else
             {
-                List<DiscordAutoCompleteChoice> choices = new List<DiscordAutoCompleteChoice>(competitionTeams.Count);
                 foreach (var team in competitionTeams)
                 {
                     choices.Add(new DiscordAutoCompleteChoice(team.teamName, team.teamId));
                 }
-                return choices;
             }
+            return choices;
         }
 
     }
@@ -219,7 +222,7 @@ namespace DiscordBot
         {
             playerNames.Clear();
             Console.WriteLine($"GETTING {(long)ctx.Options[1].Value} ");
-            await BotCommandLogic.GetPlayerNamesFromTeam((long)ctx.Options[1].Value, playerNames);
+            //await BotCommandLogic.GetPlayerNamesFromTeam((long)ctx.Options[1].Value, playerNames);
 
             if (playerNames.Count == 0)
             {

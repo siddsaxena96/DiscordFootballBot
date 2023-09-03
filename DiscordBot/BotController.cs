@@ -16,8 +16,8 @@ namespace DiscordBot
         public DiscordClient _client { get; private set; }        
         public CommandsNextExtension _commands { get; private set; }        
         
-        private static ConfigurationStruct _configuration;
-        public static ConfigurationStruct Configuration => _configuration;
+        private static Configuration _configuration;
+        public static Configuration Configuration => _configuration;
 
         public async Task InitBot()
         {
@@ -26,7 +26,7 @@ namespace DiscordBot
             using var sr = new StreamReader(fs, new UTF8Encoding(false));
             json = await sr.ReadToEndAsync();
             Console.Write(json);
-            _configuration = JsonConvert.DeserializeObject<ConfigurationStruct>(json);
+            _configuration = JsonConvert.DeserializeObject<Configuration>(json);
 
             var config = new DiscordConfiguration()
             {

@@ -15,7 +15,7 @@ namespace DiscordBot
         private static Dictionary<string, List<Team>> _teamDataCache = new(5);
         private static List<SubscriptionDetails> _subscriptions = new(5);
         private static List<List<string>> _tableData = new(5);
-        private static List<string> _stringList = new(5);        
+        private static List<string> _stringList = new(5);
         private static string subscriptionFileLocation = "./subscription.json";
         private static HttpClient _httpClient;
 
@@ -162,7 +162,7 @@ namespace DiscordBot
                 DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);
                 Console.WriteLine(finalDateTime);
                 DateTime utcTime = TimeZoneInfo.ConvertTimeToUtc(istTime, istTimeZone);
-                return istMatchDate;                
+                return istMatchDate;
             }
             /// <summary>
             /// Calculates the year for the date based on day and month passed, it the day and month have passed in current year it will return the next year
@@ -341,9 +341,17 @@ namespace DiscordBot
 
         public async static Task RefreshTeamsCache()
         {
-
+            var competitionCodes = Enum.GetNames(typeof(LeagueOptions));
+            _teamDataCache.Clear();
+            foreach(var competitionCode in competitionCodes)
+            {
+                await GetTeamsFromCompetition(competitionCode);
+            }
+            foreach(var kvp in _teamDataCache)
+            {
+                Console.WriteLine($"{kvp.Key} - {kvp.Value.Count}");
+            }
         }
-
         public static void ClearTeamStatsCache()
         {
         }

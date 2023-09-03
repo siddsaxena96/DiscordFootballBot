@@ -12,21 +12,19 @@ namespace DiscordBot
         private static bool isDailyTaskRunning = true;
         static async Task Main(string[] args)
         {
-            WebScrappingTest();
             _botController = new BotController();
             _botController.InitBot().GetAwaiter().GetResult();
-            /*  
-
-               Timer dailyTimer = new Timer(async (state) => await DailyTask(), null, TimeSpan.Zero, TimeSpan.FromHours(24));
-
-               Timer halfHourlyTimer = new Timer(async (state) => { if (!isDailyTaskRunning) await HalfHourlyTask(); }, null, TimeSpan.Zero, TimeSpan.FromMinutes(30));*/                        
+            
+            Timer dailyTimer = new Timer(async (state) => await DailyTask(), null, TimeSpan.Zero, TimeSpan.FromHours(24));
+            Timer halfHourlyTimer = new Timer(async (state) => { if (!isDailyTaskRunning) await HalfHourlyTask(); }, null, TimeSpan.Zero, TimeSpan.FromMinutes(30));
+            
             Console.ReadLine();
         }
 
         private static void WebScrappingTest()
         {
         }
-        
+
 
         private static async Task DailyTask()
         {

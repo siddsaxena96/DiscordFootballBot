@@ -13,7 +13,7 @@ namespace DiscordBot
 {
     public class BotController
     {        
-        public DiscordClient _client { get; private set; }        
+        public static DiscordClient _client { get; private set; }        
         public CommandsNextExtension _commands { get; private set; }        
         
         private static Configuration _configuration;
@@ -74,7 +74,7 @@ namespace DiscordBot
             throw new Exception();
         }
 
-        public async Task RoutineCheckUpcomingMatches()
+        public async static Task RoutineCheckUpcomingMatches()
         {
             List<DiscordEmbed> matchReminders = new List<DiscordEmbed>();
             await BotCommandLogic.RoutineCheckUpcomingMatches(matchReminders);

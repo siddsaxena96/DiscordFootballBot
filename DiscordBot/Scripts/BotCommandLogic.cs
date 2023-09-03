@@ -109,7 +109,7 @@ namespace DiscordBot
                 var matchTime = ConvertToUTCTime(date, time);
 
                 TimeSpan timeDifference = matchTime - DateTime.UtcNow;
-
+                Console.WriteLine(timeDifference.ToString());
                 bool remind = timeDifference.TotalHours is < 24 and >= 23.5
                     || timeDifference.TotalHours is < 12 and >= 11.5
                     || timeDifference.TotalHours is < 1 and > 0;
@@ -285,7 +285,6 @@ namespace DiscordBot
                 var time = row.SelectSingleNode(".//td[@class='Table__TD'][5]/a[@class='AnchorLink']/text()").InnerText;
                 var competition = row.SelectSingleNode(".//td[@class='Table__TD'][6]/span/text()").InnerText;
                 _tableData.Add(new() { date, home_team, "V", away_team, time, competition });
-                Console.WriteLine($"{i} - {upUntil}");
                 if (upUntil > -1 && i == upUntil - 1) break;
             }
             CreateTable(_tableData, responseStrings, 1800);

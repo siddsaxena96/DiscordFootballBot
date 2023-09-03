@@ -38,7 +38,7 @@ namespace DiscordBot
         private static async Task HalfHourlyTask()
         {
             Console.WriteLine($"Started Half Hourly Task {FormatTimeToIST(DateTime.UtcNow)}");
-            await _botController.RoutineCheckUpcomingMatches();
+            await BotController.RoutineCheckUpcomingMatches();
             Console.WriteLine($"Ended Half Hourly Task {FormatTimeToIST(DateTime.UtcNow)}");
         }
         private static string FormatTimeToIST(DateTime utcDate)

@@ -93,7 +93,7 @@ namespace DiscordBot
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
-        
+
         [SlashCommand("Show_League_Stats", "Shows current top goalscorers and assisters of the selected league")]
         public async Task ShowLeagueStats(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague)
         {
@@ -107,7 +107,7 @@ namespace DiscordBot
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
-       
+
         /*[SlashCommand("Show_Player_Stats", "Shows individual stats of the selected player")]
         public async Task ShowPlayerStats(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague,
             [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))][Option("Team", "Select Team", true)] long teamId,
@@ -130,7 +130,7 @@ namespace DiscordBot
             }
         }*/
 
-        [SlashCommand($"Clear_Player_Stats_Cache", "Clears the cached player stats ( requires Admin User)")]
+        [SlashCommand("Clear_Player_Stats_Cache", "Clears the cached player stats ( requires Admin User)")]
         public async Task ClearPlayerStatsCache(InteractionContext interactionContext)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
@@ -148,7 +148,7 @@ namespace DiscordBot
 
         }
 
-        [SlashCommand($"Reset_League_Teams_Cache", "Reloads team data for all leagues ( requires Admin User)")]
+        [SlashCommand("Reset_League_Teams_Cache", "Reloads team data for all leagues ( requires Admin User)")]
         public async Task ResetLeagueTeamDataCache(InteractionContext interactionContext)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
@@ -157,6 +157,23 @@ namespace DiscordBot
             {
                 await BotCommandLogic.RefreshTeamsCache();
                 response = "Player Stats Cache has been reset";
+            }
+            else
+            {
+                response = "Sorry, only admins can use this command";
+            }
+            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
+        }
+        
+        [SlashCommand("Force_Update_MatchReminder", "Force botia to refresh match reminder ( requires Admin User)")]
+        public async Task ForceUpdateMatchReminder(InteractionContext interactionContext)
+        {
+            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
+            string response = "";
+            if (BotController.Configuration.AdminUsers.Contains(interactionContext.User.Id))
+            {
+                response = ":(";
+                await BotController.RoutineCheckUpcomingMatches();                
             }
             else
             {

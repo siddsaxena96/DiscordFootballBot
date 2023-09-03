@@ -22,19 +22,7 @@ namespace DiscordBot
         public string leagueStatsURL { get; private set; }
 
         [JsonProperty("prefix")]
-        public string Prefix { get; private set; }
-
-        [JsonProperty("fdataapiendpoint")]
-        public string FDataAPIEndpoint { get; private set; }
-
-        [JsonProperty("fdataapitoken")]
-        public string FDataAPIToken { get; private set; }
-
-        [JsonProperty("apifootballendpoint")]
-        public string APIFootbalAPIEndPoint { get; private set; }
-
-        [JsonProperty("apifootballtoken")]
-        public string APIFootballToken { get; private set; }
+        public string Prefix { get; private set; }        
 
         [JsonProperty("serverid")]
         public ulong ServerId { get; private set; }

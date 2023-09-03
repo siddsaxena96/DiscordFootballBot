@@ -3,12 +3,14 @@ using HtmlAgilityPack;
 using Newtonsoft.Json;
 using System;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DiscordBot
 {
     public static class BotCommandLogic
     {
+        private static Dictionary<string, List<Team>> _teamDataCache = new(5);
         private static Dictionary<string, List<Team_Old>> _footballDataOrgTeamsCache = new(5);
         private static Dictionary<int, int> _footballDataOrgTeamIdToAPIFootballTeamId = new(100);
 
@@ -27,20 +29,20 @@ namespace DiscordBot
         {
             _httpClient = new HttpClient();
         }
-        public async static Task<string> SubscribeTo(string competitionId, long teamId)
+        public async static Task<string> SubscribeTo(string competitionId, string teamId)
         {
-            foreach (var team in _footballDataOrgTeamsCache[competitionId])
+            foreach (var team in _teamDataCache[competitionId])
             {
-                if (team.id == teamId)
+                if (team.teamId == teamId)
                 {
                     bool result = await UpdateSubscriptionList(team);
                     if (result)
                     {
-                        return $"Congratulations ! You are now subscribed to {team.name}";
+                        return $"Congratulations ! You are now subscribed to {team.teamName}";
                     }
                     else
                     {
-                        return $"You are already subscribed to {team.name}";
+                        return $"You are already subscribed to {team.teamName}";
                     }
                 }
             }
@@ -62,13 +64,13 @@ namespace DiscordBot
                 fs.Close();
             }
         }
-        private async static Task<bool> UpdateSubscriptionList(Team_Old team)
+        private async static Task<bool> UpdateSubscriptionList(Team team)
         {
             await GetSubscriptions(_subscriptions);
 
             foreach (var sub in _subscriptions)
             {
-                if (sub.team.id == team.id)
+                if (sub.team.teamId == team.teamId)
                 {
                     return false;
                 }
@@ -98,7 +100,7 @@ namespace DiscordBot
         }
         private async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
         {
-            string url = $"teams/{sub.team.id}/matches?status=SCHEDULED&dateFrom={currentDate}&dateTo={nextDateString}";
+            string url = $"teams/{sub.team.teamId}/matches?status=SCHEDULED&dateFrom={currentDate}&dateTo={nextDateString}";
             string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
 
             if (response == "FAIL") return;
@@ -134,6 +136,10 @@ namespace DiscordBot
 
         public async static Task<IReadOnlyList<Team>> GetTeamsFromCompetition(string competitionCode)
         {
+            if (_teamDataCache.TryGetValue(competitionCode, out var teamData)) return teamData;
+
+            _teamDataCache.Add(competitionCode, new(20));
+
             var leagueTableString = BotController.Configuration.baseURL + BotController.Configuration.leagueTableURL.Replace("***", competitionCode); ;
             var html = _httpClient.GetStringAsync(leagueTableString).Result;
             var htmlDocument = new HtmlDocument();
@@ -144,16 +150,29 @@ namespace DiscordBot
             var leagueTeams = leagueTableLeft.SelectNodes("//span[@class='hide-mobile']/a[@class='AnchorLink']");
             if (leagueTeams == null) return null;
 
-            _teamList.Clear();
 
             foreach (var team in leagueTeams)
             {
                 string teamName = team.InnerText;
                 string hrefValue = team.GetAttributeValue("href", "");
-                _teamList.Add(new(teamName, hrefValue));
+                string teamId = ExtractTeamID(hrefValue);
+                _teamDataCache[competitionCode].Add(new(teamName, teamId));
             }
-            return _teamList;
+            return _teamDataCache[competitionCode];
+
+            string ExtractTeamID(string teamHref)
+            {
+                string pattern = @"/id/(\d+)/";
+                System.Text.RegularExpressions.Match match = Regex.Match(teamHref, pattern);
+
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    return match.Groups[1].Value;
+                }
+                return "-1";
+            }
         }
+
         public async static Task<string> GetStandingsForCompetition(string competitionCode, List<string> stringsToSendBack)
         {
             var leagueTableString = BotController.Configuration.baseURL + BotController.Configuration.leagueTableURL.Replace("***", competitionCode); ;
@@ -197,7 +216,7 @@ namespace DiscordBot
             return $"{competitionName}\t| {seasonYear} |\n";
         }
 
-        public async static Task<string> GetTeamFixtures(string extractedId, List<string> responseStrings)
+        public async static Task<string> GetTeamFixtures(string extractedId, List<string> responseStrings, int upUntil = -1)
         {
             var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", extractedId);
             var html = _httpClient.GetStringAsync(fixturesUrl).Result;
@@ -207,8 +226,9 @@ namespace DiscordBot
             var rows = htmlDocument.DocumentNode.SelectNodes("//tbody[@class='Table__TBODY']//tr");
             _tableData.Clear();
             _tableData.Add(new() { "DATE", "HOME", "V", "AWAY", "TIME", "COMPETITION" });
-            foreach(var row in rows )
+            for (int i = 0; i < rows.Count; i++)
             {
+                HtmlNode row = rows[i];
                 var date = row.SelectSingleNode(".//div[@class='matchTeams']/text()").InnerText;
                 var home_team = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
                 var away_team = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
@@ -216,10 +236,12 @@ namespace DiscordBot
                 var away_team_logo = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/img/@src");
                 var time = row.SelectSingleNode(".//td[@class='Table__TD'][5]/a[@class='AnchorLink']/text()").InnerText;
                 var competition = row.SelectSingleNode(".//td[@class='Table__TD'][6]/span/text()").InnerText;
-                _tableData.Add(new() { date, home_team, "V", away_team, time, competition });                
+                _tableData.Add(new() { date, home_team, "V", away_team, time, competition });
+                Console.WriteLine($"{i} - {upUntil}");
+                if (upUntil > -1 && i == upUntil - 1) break;
             }
             CreateTable(_tableData, responseStrings, 1800);
-            return "FAFA";
+            return "Upcoming Matches :";
         }
 
         public async static Task RefreshTeamsCache()
@@ -293,53 +315,9 @@ namespace DiscordBot
             return DateTime.Now.Month >= 8 ? currentYear : (currentYear - 1);
         }
 
-        public async static Task<string> GetAllScheduledFixturesForTeam(long teamId)
-        {
-            string message = "";
-            string url = $"teams/{teamId}/matches?status=SCHEDULED";
-            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
-
-            if (response == "FAIL") return "Sorry, Unable to fetch next fixture";
-
-            try
-            {
-                var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
-                if (fixtureList.matches.Count == 0)
-                    return "Team has no upcoming matches";
-                foreach (var match in fixtureList.matches)
-                {
-                    message += $"**{match.homeTeam.name} VS {match.awayTeam.name}**\n\t{match.competition.name}\n\t{FormatTimeToIST(match.utcDate)}\n\n";
-                }
-                return message;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in Getting Scheduled Match {ex.Message}");
-                return "Sorry, Unable to fetch next fixture";
-            }
-        }
-        public async static Task<string> GetUpcomingFixtureForTeam(long teamId)
-        {
-            string url = $"teams/{teamId}/matches?status=SCHEDULED";
-            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
-
-            if (response == "FAIL") return "Sorry, Unable to fetch next fixture";
-
-            try
-            {
-                var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
-                if (fixtureList.matches.Count == 0)
-                    return "Team has no upcoming matches";
-                var match = fixtureList.matches[0];
-                string message = $"**{match.homeTeam.name} VS {match.awayTeam.name}**\n\t{match.competition.name}\n\t{FormatTimeToIST(match.utcDate)}\n\n";
-                return message;
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in Getting Scheduled Match {ex.Message}");
-                return "Sorry, Unable to fetch next fixture";
-            }
+        public async static Task<string> GetUpcomingFixtureForTeam(string teamId, long numMatches, List<string> responseStrings)
+        {            
+            return await GetTeamFixtures(teamId, responseStrings, (int)numMatches);
         }
         public async static Task<string> GetTopScorersForCompetition(string competitionCode, List<string> responseStrings)
         {
@@ -546,6 +524,6 @@ namespace DiscordBot
         {
             DateTime date = DateTime.ParseExact(yyyymmdd, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             return date.ToString("dd-MM-yyyy");
-        }        
+        }
     }
 }

@@ -3,6 +3,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
 using System.Text.RegularExpressions;
 using System;
+using System.Runtime.InteropServices;
 
 namespace DiscordBot
 {
@@ -11,16 +12,16 @@ namespace DiscordBot
         List<string> responseStrings = new(5);
 
         [SlashCommand("Subscribe_To_Team", "Subscribe to fixture reminders of a team")]
-        public async Task SubscribeToTeam(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague,
+        public async Task SubscribeToTeam(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague,
             [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))]
-            [Option("Team", "SelectTeam", true)] long teamId)
+            [Option("Team", "SelectTeam", true)] string teamId)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
 
             string response;
-            if (teamId == -1)
+            if (teamId == "-1")
             {
-                response = "Sorry Unable to Fetch teams at this time";
+                response = "Sorry Unable to Fetch team data at this time";
             }
             else
             {
@@ -33,69 +34,48 @@ namespace DiscordBot
         [SlashCommand("Show_Team_Schedule", "Shows all scheduled fixtures for the selected team")]
         public async Task ShowTeamSchedule(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague,
             [Autocomplete(typeof(FetchCompetitionTeamsAutoComplete))]
-            [Option("Team", "SelectTeam", true)] string teamHref)
+            [Option("Team", "SelectTeam", true)] string teamId)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
 
-            string response = "FF";
-            if (string.IsNullOrEmpty(teamHref))
+            string response;
+            if (teamId == "-1")
             {
                 response = "Sorry Unable to Fetch teams at this time";
             }
             else
             {
-                string pattern = @"/id/(\d+)/";
-                System.Text.RegularExpressions.Match match = Regex.Match(teamHref, pattern);
-
-                if (match.Success && match.Groups.Count > 1)
+                responseStrings.Clear();
+                response = await BotCommandLogic.GetTeamFixtures(teamId, responseStrings);
+                foreach (var responseString in responseStrings)
                 {
-                    string extractedId = match.Groups[1].Value;
-                    Console.WriteLine("Extracted ID: " + extractedId);
-                    responseStrings.Clear();
-                    response = await BotCommandLogic.GetTeamFixtures(extractedId,responseStrings);
-                    foreach (var responseString in responseStrings)
-                    {
-                        await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
-                    }
+                    await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
                 }
             }
 
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
 
-        [SlashCommand("Show_Scheduled", "Show all scheduled fixtures for a subscribed team")]
-        public async Task ShowScheduled(InteractionContext interactionContext,
-            [Autocomplete(typeof(FetchSubscribedTeamsAutoComplete))]
-            [Option("Team", "SelectTeam", true)] long teamId)
-        {
-            await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
-            string response = "";
-            if (teamId == -1)
-            {
-                response = "Sorry, it seems you have no subscriptions";
-            }
-            else
-            {
-                response = await BotCommandLogic.GetAllScheduledFixturesForTeam(teamId);              
-            }
-            await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
-        }
-
         [SlashCommand("Show_Upcoming", "Show next scheduled fixtures for a subscribed team")]
         public async Task ShowUpcoming(InteractionContext interactionContext,
             [Autocomplete(typeof(FetchSubscribedTeamsAutoComplete))]
-            [Option("Team", "SelectTeam", true)] long teamId)
-        {
+            [Option("Team", "Select Team", true)] string teamId,
+            [Option("NumMatches", "Optional, no value will show next match")] long numMatches = 0)
+        {            
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
-
             string response = "";
-            if (teamId == -1)
+            if (teamId == "-1")
             {
                 response = "Sorry, it seems you have no subscriptions";
             }
             else
             {
-                response = await BotCommandLogic.GetUpcomingFixtureForTeam(teamId);
+                responseStrings.Clear();
+                response = await BotCommandLogic.GetUpcomingFixtureForTeam(teamId, numMatches, responseStrings);
+                foreach (var responseString in responseStrings)
+                {
+                    await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
+                }
             }
             await interactionContext.EditResponseAsync(new DiscordWebhookBuilder().WithContent(response));
         }
@@ -115,7 +95,7 @@ namespace DiscordBot
         }
 
         [SlashCommand("Show_Top_Scorer", "Shows current top goalscorers of the selected league")]
-        public async Task ShowTopScorers(InteractionContext interactionContext, [Option("League", "Select League")] FDataLeagueOptions selectedLeague)
+        public async Task ShowTopScorers(InteractionContext interactionContext, [Option("League", "Select League")] LeagueOptions selectedLeague)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             responseStrings.Clear();
@@ -187,21 +167,24 @@ namespace DiscordBot
 
     public class FetchSubscribedTeamsAutoComplete : IAutocompleteProvider
     {
-        List<SubscriptionDetails> subscriptions = new(5);
+        private static List<SubscriptionDetails> subscriptions = new(5);
+        private static List<DiscordAutoCompleteChoice> choices = new(5);
+
         public async Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
         {
-            Console.WriteLine("Providing");
             subscriptions.Clear();
             await BotCommandLogic.GetSubscriptions(subscriptions);
-            Console.WriteLine($"Sub count = {subscriptions.Count}");
+            choices.Clear();
             if (subscriptions.Count == 0)
             {
-                return new List<DiscordAutoCompleteChoice>() { new DiscordAutoCompleteChoice("No Subscriptions", -1) };
+                choices.Add(new DiscordAutoCompleteChoice("No Subscriptions", "-1"));
             }
-            List<DiscordAutoCompleteChoice> choices = new(subscriptions.Count);
-            foreach (var sub in subscriptions)
+            else
             {
-                choices.Add(new DiscordAutoCompleteChoice(sub.team.name, sub.team.id));
+                foreach (var sub in subscriptions)
+                {
+                    choices.Add(new DiscordAutoCompleteChoice(sub.team.teamName, sub.team.teamId));
+                }
             }
             return choices;
         }
@@ -221,11 +204,12 @@ namespace DiscordBot
                 List<DiscordAutoCompleteChoice> choices = new List<DiscordAutoCompleteChoice>(competitionTeams.Count);
                 foreach (var team in competitionTeams)
                 {
-                    choices.Add(new DiscordAutoCompleteChoice(team.teamName, team.teamHref));
+                    choices.Add(new DiscordAutoCompleteChoice(team.teamName, team.teamId));
                 }
                 return choices;
             }
         }
+
     }
 
     public class FetchPlayerNamesAutoComplete : IAutocompleteProvider

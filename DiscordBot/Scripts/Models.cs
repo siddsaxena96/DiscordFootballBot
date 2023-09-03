@@ -44,8 +44,8 @@ namespace DiscordBot
     [Serializable]
     public class SubscriptionDetails
     {
-        public Team_Old team;
-        public SubscriptionDetails(Team_Old team)
+        public Team team;
+        public SubscriptionDetails(Team team)
         {
             this.team = team;
         }
@@ -244,13 +244,13 @@ namespace DiscordBot
     }
     public class Team
     {
-        public string teamName;
-        public string teamHref;
+        public string teamId;
+        public string teamName;        
 
-        public Team(string teamName, string teamHref)
+        public Team(string teamName, string teamId)
         {
             this.teamName = teamName;
-            this.teamHref = teamHref;
+            this.teamId = teamId;
         }
     }
 

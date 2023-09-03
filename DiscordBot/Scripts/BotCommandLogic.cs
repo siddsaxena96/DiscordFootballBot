@@ -159,10 +159,10 @@ namespace DiscordBot
 
                 DateTime istTime = DateTime.ParseExact(timeString, "h:mm tt", CultureInfo.InvariantCulture);
 
-                DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);
-                Console.WriteLine(finalDateTime);
+                DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);                
                 DateTime utcTime = TimeZoneInfo.ConvertTimeToUtc(istTime, istTimeZone);
-                return istMatchDate;
+                Console.WriteLine($"{finalDateTime} - {utcTime}");
+                return utcTime;
             }
             /// <summary>
             /// Calculates the year for the date based on day and month passed, it the day and month have passed in current year it will return the next year

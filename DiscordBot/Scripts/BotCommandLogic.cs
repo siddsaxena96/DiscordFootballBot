@@ -2,7 +2,9 @@
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using System;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Text.RegularExpressions;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -70,7 +72,7 @@ namespace DiscordBot
 
             foreach (var sub in _subscriptions)
             {
-                if (sub.team.teamId == team.teamId)
+                if (sub.Team.teamId == team.teamId)
                 {
                     return false;
                 }
@@ -87,10 +89,10 @@ namespace DiscordBot
         public async static Task RoutineCheckUpcomingMatches(List<DiscordEmbed> matchReminders)
         {
             await GetSubscriptions(_subscriptions);
+            Console.WriteLine($"SUB COUNT = {_subscriptions.Count}");
             if (_subscriptions.Count == 0)
                 return;
             string currentDate = DateTime.Now.ToString("yyyy-MM-dd");
-            // Get the next date by adding one day to the current date
             DateTime nextDate = DateTime.Now.AddDays(1);
             string nextDateString = nextDate.ToString("yyyy-MM-dd");
             foreach (var sub in _subscriptions)
@@ -100,37 +102,95 @@ namespace DiscordBot
         }
         private async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
         {
-            string url = $"teams/{sub.team.teamId}/matches?status=SCHEDULED&dateFrom={currentDate}&dateTo={nextDateString}";
-            string response = await APIController.GetRequestAsync(url, APIChoice.FootbalDataOrg);
+            var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", sub.Team.teamId);
+            var html = _httpClient.GetStringAsync(fixturesUrl).Result;
+            var htmlDocument = new HtmlDocument();
+            htmlDocument.LoadHtml(html);
 
-            if (response == "FAIL") return;
+            var row = htmlDocument.DocumentNode.SelectSingleNode("//tbody[@class='Table__TBODY']//tr");
+            var date = row.SelectSingleNode(".//div[@class='matchTeams']/text()").InnerText;
+            var home_team = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
+            var away_team = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/text()").InnerText;
+            var home_team_logo = row.SelectSingleNode(".//div[@class='local flex items-center']/a[@class='AnchorLink Table__Team']/img/@src");
+            var away_team_logo = row.SelectSingleNode(".//div[@class='away flex items-center']/a[@class='AnchorLink Table__Team']/img/@src");
+            var time = row.SelectSingleNode(".//td[@class='Table__TD'][5]/a[@class='AnchorLink']/text()").InnerText;
+            var competition = row.SelectSingleNode(".//td[@class='Table__TD'][6]/span/text()").InnerText;            
+            
+            var matchTime = ConvertToUTCTime(date, time);
+            
+            TimeSpan timeDifference = matchTime - DateTime.UtcNow;
+            
+            bool remind = timeDifference.TotalHours is < 24 and >= 23.5
+                || timeDifference.TotalHours is < 12 and >= 11.5
+                || timeDifference.TotalHours is < 1 and > 0;
 
-            try
+            if (!remind) return;
+
+            DiscordEmbedBuilder embedMessage = new()
             {
-                var fixtureList = JsonConvert.DeserializeObject<TeamFixturesResponse>(response);
-                foreach (var match in fixtureList.matches)
+                Title = $"{home_team} VS {away_team}",
+                Description = $"{competition}\n\t{time}\n"
+            };
+            matchReminders.Add(embedMessage);
+        }
+
+        private static DateTime ConvertToUTCTime(string dateString, string timeString)
+        {
+            if (string.IsNullOrEmpty(dateString) || dateString == "TBD" || string.IsNullOrEmpty(timeString) || timeString == "TBD")
+                return DateTime.MinValue;
+
+            DateTime istMatchDate = DateTime.MinValue;
+            string[] dateParts = dateString.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (dateParts.Length == 3)
+            {
+                //dateParts[0] is day of the week
+                if (int.TryParse(dateParts[1], out int day))
                 {
-                    bool remind = false;
-                    TimeSpan timeDifference = match.utcDate - DateTime.UtcNow;
-                    Console.WriteLine($"{match.homeTeam.name} vs {match.awayTeam.name} - {timeDifference.TotalHours}");
+                    string monthAbbreviation = dateParts[2];
+                    DateTime parsedDate;
 
-                    remind = timeDifference.TotalHours is < 24 and >= 23.5
-                        || timeDifference.TotalHours is < 12 and >= 11.5
-                        || timeDifference.TotalHours is < 1 and > 0;
-
-                    if (!remind) continue;
-
-                    DiscordEmbedBuilder embedMessage = new()
+                    if (DateTime.TryParseExact(monthAbbreviation, "MMM", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
                     {
-                        Title = $"{match.homeTeam.name} VS {match.awayTeam.name}",
-                        Description = $"{match.competition.name}\n\t{FormatTimeToIST(match.utcDate)}\n"
-                    };
-                    matchReminders.Add(embedMessage);
+                        // Determine the year (you can set it to a specific year)
+                        int year = CalculateYear(day, parsedDate);
+
+                        // Create the DateTime object
+
+                        istMatchDate = new DateTime(year, parsedDate.Month, day);
+                    }
                 }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"Error in trying to get Upcoming Match {ex.Message}");
+                Console.WriteLine($"Date Skipped {dateString}");
+            }
+
+            TimeZoneInfo istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+
+            DateTime istTime = DateTime.ParseExact(timeString, "h:mm tt", CultureInfo.InvariantCulture);
+
+            DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);
+            Console.WriteLine(finalDateTime);
+            DateTime utcTime = TimeZoneInfo.ConvertTimeToUtc(istTime, istTimeZone);
+            return istMatchDate;
+
+            /// <summary>
+            /// Calculates the year for the date based on day and month passed, it the day and month have passed in current year it will return the next year
+            /// </summary>
+            /// <param name="day"></param>
+            /// <param name="parsedDate"></param>
+            /// <returns></returns>
+            static int CalculateYear(int day, DateTime parsedDate)
+            {
+                var istDateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
+                if (parsedDate.Month <= istDateTime.Month)
+                {
+                    if (day < istDateTime.Day)
+                    {
+                        return DateTime.UtcNow.Year + 1;
+                    }
+                }
+                return DateTime.UtcNow.Year;
             }
         }
 
@@ -316,7 +376,7 @@ namespace DiscordBot
         }
 
         public async static Task<string> GetUpcomingFixtureForTeam(string teamId, long numMatches, List<string> responseStrings)
-        {            
+        {
             return await GetTeamFixtures(teamId, responseStrings, (int)numMatches);
         }
         public async static Task<string> GetTopScorersForCompetition(string competitionCode, List<string> responseStrings)

@@ -183,7 +183,7 @@ namespace DiscordBot
             {
                 foreach (var sub in subscriptions)
                 {
-                    choices.Add(new DiscordAutoCompleteChoice(sub.team.teamName, sub.team.teamId));
+                    choices.Add(new DiscordAutoCompleteChoice(sub.Team.teamName, sub.Team.teamId));
                 }
             }
             return choices;

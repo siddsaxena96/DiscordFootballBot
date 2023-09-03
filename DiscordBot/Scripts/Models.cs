@@ -44,7 +44,8 @@ namespace DiscordBot
     [Serializable]
     public class SubscriptionDetails
     {
-        public Team team;
+        private Team team;
+        public Team Team => team;
         public SubscriptionDetails(Team team)
         {
             this.team = team;

@@ -112,9 +112,10 @@ namespace DiscordBot
 
                 TimeSpan timeDifference = matchTime - DateTime.UtcNow;
                 Console.WriteLine(timeDifference.ToString());
-                bool remind = timeDifference.TotalHours is < 24 and >= 23.5
+                bool remind = timeDifference.TotalDays < 1  
+                    &&  (timeDifference.TotalHours is < 24 and >= 23.5
                     || timeDifference.TotalHours is < 12 and >= 11.5
-                    || timeDifference.TotalHours is < 1 and > 0;
+                    || timeDifference.TotalHours is < 1 and > 0);
 
                 if (!remind) return;
 
@@ -162,9 +163,8 @@ namespace DiscordBot
                 DateTime istTime = DateTime.ParseExact(timeString, "h:mm tt", CultureInfo.InvariantCulture);
 
                 DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);
-                DateTime utcTime = TimeZoneInfo.ConvertTimeToUtc(istTime, istTimeZone);
-                Console.WriteLine($"{finalDateTime} - {utcTime}");
-                return utcTime;
+
+                return finalDateTime.ToUniversalTime();
             }
             /// <summary>
             /// Calculates the year for the date based on day and month passed, it the day and month have passed in current year it will return the next year

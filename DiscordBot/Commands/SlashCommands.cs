@@ -60,7 +60,7 @@ namespace DiscordBot
         public async Task ShowUpcoming(InteractionContext interactionContext,
             [Autocomplete(typeof(FetchSubscribedTeamsAutoComplete))]
             [Option("Team", "Select Team", true)] string teamId,
-            [Option("NumMatches", "Optional, no value will show next match")] long numMatches = 0)
+            [Option("NumMatches", "Optional, no value will show next match")] long numMatches = 1)
         {
             await interactionContext.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource);
             string response = "";

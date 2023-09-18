@@ -1,12 +1,8 @@
 ﻿using DSharpPlus.Entities;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
-using System;
-using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Text.RegularExpressions;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DiscordBot
 {
@@ -93,9 +89,7 @@ namespace DiscordBot
             async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
             {
                 var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", sub.Team.teamId);
-                var html = _httpClient.GetStringAsync(fixturesUrl).Result;
-                var htmlDocument = new HtmlDocument();
-                htmlDocument.LoadHtml(html);
+                var htmlDocument = await GetHtmlDocument(fixturesUrl);
 
                 var row = htmlDocument.DocumentNode.SelectSingleNode("//tbody[@class='Table__TBODY']//tr");
                 if (row == null) return;
@@ -112,8 +106,8 @@ namespace DiscordBot
 
                 TimeSpan timeDifference = matchTime - DateTime.UtcNow;
                 Console.WriteLine(timeDifference.ToString());
-                bool remind = timeDifference.TotalDays < 1  
-                    &&  (timeDifference.TotalHours is < 24 and >= 23.5
+                bool remind = timeDifference.TotalDays < 1
+                    && (timeDifference.TotalHours is < 24 and >= 23.5
                     || timeDifference.TotalHours is < 12 and >= 11.5
                     || timeDifference.TotalHours is < 1 and > 0);
 
@@ -134,22 +128,18 @@ namespace DiscordBot
 
                 DateTime istMatchDate = DateTime.MinValue;
                 string[] dateParts = dateString.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                TimeZoneInfo istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
                 if (dateParts.Length == 3)
                 {
                     //dateParts[0] is day of the week
                     if (int.TryParse(dateParts[1], out int day))
                     {
                         string monthAbbreviation = dateParts[2];
-                        DateTime parsedDate;
 
-                        if (DateTime.TryParseExact(monthAbbreviation, "MMM", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
+                        if (DateTime.TryParseExact(monthAbbreviation, "MMM", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime matchMonth))
                         {
-                            // Determine the year (you can set it to a specific year)
-                            int year = CalculateYear(day, parsedDate);
-
-                            // Create the DateTime object
-
-                            istMatchDate = new DateTime(year, parsedDate.Month, day);
+                            int year = CalculateYear(day, matchMonth, istTimeZone);
+                            istMatchDate = new DateTime(year, matchMonth.Month, day);
                         }
                     }
                 }
@@ -158,31 +148,17 @@ namespace DiscordBot
                     Console.WriteLine($"Date Skipped {dateString}");
                 }
 
-                TimeZoneInfo istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
-
                 DateTime istTime = DateTime.ParseExact(timeString, "h:mm tt", CultureInfo.InvariantCulture);
 
-                DateTime finalDateTime = new DateTime(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);
+                DateTime finalDateTime = new(istMatchDate.Year, istMatchDate.Month, istMatchDate.Day, istTime.Hour, istTime.Minute, istTime.Second);
 
-                return finalDateTime.ToUniversalTime();
+                return TimeZoneInfo.ConvertTimeToUtc(finalDateTime, istTimeZone);
             }
-            /// <summary>
-            /// Calculates the year for the date based on day and month passed, it the day and month have passed in current year it will return the next year
-            /// </summary>
-            /// <param name="day"></param>
-            /// <param name="parsedDate"></param>
-            /// <returns></returns>
-            static int CalculateYear(int day, DateTime parsedDate)
+
+            static int CalculateYear(int day, DateTime parsedMonth, TimeZoneInfo timeZone)
             {
-                var istDateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-                if (parsedDate.Month <= istDateTime.Month)
-                {
-                    if (day < istDateTime.Day)
-                    {
-                        return DateTime.UtcNow.Year + 1;
-                    }
-                }
-                return DateTime.UtcNow.Year;
+                var timeZoneDateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
+                return DateTime.UtcNow.Year + (parsedMonth.Month <= timeZoneDateTime.Month && day < timeZoneDateTime.Day ? 1 : 0);
             }
         }
 
@@ -193,9 +169,7 @@ namespace DiscordBot
             _teamDataCache.Add(competitionCode, new(20));
 
             var leagueTableString = BotController.Configuration.baseURL + BotController.Configuration.leagueTableURL.Replace("***", competitionCode); ;
-            var html = _httpClient.GetStringAsync(leagueTableString).Result;
-            var htmlDocument = new HtmlDocument();
-            htmlDocument.LoadHtml(html);
+            var htmlDocument = await GetHtmlDocument(leagueTableString);
 
             var leagueTableLeft = htmlDocument.DocumentNode.SelectSingleNode("//table[contains(@class, 'Table Table--align-right Table--fixed Table--fixed-left')]");
             if (leagueTableLeft == null) return null;
@@ -227,9 +201,7 @@ namespace DiscordBot
         public async static Task<string> GetStandingsForCompetition(string competitionCode, List<string> stringsToSendBack)
         {
             var leagueTableString = BotController.Configuration.baseURL + BotController.Configuration.leagueTableURL.Replace("***", competitionCode); ;
-            var html = _httpClient.GetStringAsync(leagueTableString).Result;
-            var htmlDocument = new HtmlDocument();
-            htmlDocument.LoadHtml(html);
+            var htmlDocument = await GetHtmlDocument(leagueTableString);
 
             var leagueTableLeft = htmlDocument.DocumentNode.SelectSingleNode("//table[contains(@class, 'Table Table--align-right Table--fixed Table--fixed-left')]");
             if (leagueTableLeft == null) return "Sorry, Unable to fetch standings";
@@ -244,11 +216,13 @@ namespace DiscordBot
             var seasonYear = htmlDocument.DocumentNode.SelectSingleNode("//select[@aria-label='Standings Season']/option[@selected]").InnerText;
             var competitionName = htmlDocument.DocumentNode.SelectSingleNode("//select[@aria-label='Standings Season Type']/option[@selected]").InnerText;
 
-            int positionCounter = 1;
             _tableData.Clear();
             _tableData.Add(new() { "Pos", "Team", "Played", "Win", "Draw", "Loss", "GF", "GA", "GD", "Pts" });
             stringsToSendBack.Clear();
+
+            int positionCounter = 1;
             int statCounter = 0;
+
             for (int i = 0; i < leagueTeams.Count; i++)
             {
                 _stringList.Clear();
@@ -262,6 +236,7 @@ namespace DiscordBot
                 positionCounter++;
                 _tableData.Add(new(_stringList));
             }
+
             CreateTable(_tableData, stringsToSendBack, 1800);
 
             return $"{competitionName}\t| {seasonYear} |\n";
@@ -269,13 +244,13 @@ namespace DiscordBot
         public async static Task<string> GetTeamFixtures(string extractedId, List<string> responseStrings, int upUntil = -1)
         {
             var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", extractedId);
-            var html = _httpClient.GetStringAsync(fixturesUrl).Result;
-            var htmlDocument = new HtmlDocument();
-            htmlDocument.LoadHtml(html);
+            var htmlDocument = await GetHtmlDocument(fixturesUrl);
 
             var rows = htmlDocument.DocumentNode.SelectNodes("//tbody[@class='Table__TBODY']//tr");
+
             _tableData.Clear();
             _tableData.Add(new() { "DATE", "HOME", "V", "AWAY", "TIME", "COMPETITION" });
+
             for (int i = 0; i < rows.Count; i++)
             {
                 HtmlNode row = rows[i];
@@ -289,7 +264,9 @@ namespace DiscordBot
                 _tableData.Add(new() { date, home_team, "V", away_team, time, competition });
                 if (upUntil > -1 && i == upUntil - 1) break;
             }
-            CreateTable(_tableData, responseStrings, 1800);
+
+            CreateTable(_tableData, responseStrings, 1700);
+
             return "Upcoming Matches :";
         }
         public async static Task<string> GetUpcomingFixtureForTeam(string teamId, long numMatches, List<string> responseStrings)
@@ -299,24 +276,14 @@ namespace DiscordBot
         public async static Task<string> GetLeagueStatsForCompetition(string competitionCode, List<string> responseStrings, int statType = -1)
         {
             var leagueStats = BotController.Configuration.baseURL + BotController.Configuration.leagueStatsURL.Replace("***", competitionCode);
-            var html = _httpClient.GetStringAsync(leagueStats).Result;
-            var htmlDocument = new HtmlDocument();
-            htmlDocument.LoadHtml(html);
-            HtmlNode selectedTable = null;
+            var htmlDocument = await GetHtmlDocument(leagueStats);
+
+            string tableHeader = statType == 0 ? "Top Scorers :\n" : "Top Assists :\n";
+            string selectedStat = statType == 0 ? "top-score-table" : "top-assists-table";
+            HtmlNode selectedTable = htmlDocument.DocumentNode.SelectSingleNode($"//div[@class='ResponsiveTable {selectedStat}']//table[@class='Table']");
             _tableData.Clear();
-            string tableHeader = null;
-            if (statType == 0)
-            {
-                selectedTable = htmlDocument.DocumentNode.SelectSingleNode("//div[@class='ResponsiveTable top-score-table']//table[@class='Table']");
-                _tableData.Add(new() { "Rank", "Name", "Team", "GP", "Goals" });
-                tableHeader = "Top Scorers :\n";
-            }
-            else if (statType == 1)
-            {
-                selectedTable = htmlDocument.DocumentNode.SelectSingleNode("//div[@class='ResponsiveTable top-assists-table']//table[@class='Table']");
-                _tableData.Add(new() { "Rank", "Name", "Team", "GP", "Assists" });
-                tableHeader = "Top Assists :\n";
-            }
+            _tableData.Add(new() { "Rank", "Name", "Team", "GP", statType == 0 ? "Goals" : "Assists" });
+
             PopulateLeagueStatTable(responseStrings, selectedTable, tableHeader);
 
             return "League Stats :";
@@ -325,7 +292,7 @@ namespace DiscordBot
                 if (selectedTable == null) return;
 
                 var rows = selectedTable.SelectNodes(".//tr").Skip(1).ToList();
-                int rowCount = rows.Count() > 10 ? 10 : rows.Count();
+                int rowCount = rows.Count > 10 ? 10 : rows.Count;
                 for (int i = 0; i < rowCount; i++)
                 {
                     HtmlNode row = rows[i];
@@ -356,6 +323,7 @@ namespace DiscordBot
         public static void ClearTeamStatsCache()
         {
         }
+        
         private static void CreateTable(List<List<string>> tableData, List<string> stringsToSendBack, int charLim, string header = "")
         {
             string tableString = string.IsNullOrEmpty(header) ? "" : header;
@@ -418,6 +386,13 @@ namespace DiscordBot
 
             if (!string.IsNullOrEmpty(tableString))
                 stringsToSendBack.Add(tableString);
+        }
+        private async static Task<HtmlDocument> GetHtmlDocument(string url)
+        {
+            var html = await _httpClient.GetStringAsync(url);
+            var htmlDocument = new HtmlDocument();
+            htmlDocument.LoadHtml(html);
+            return htmlDocument;
         }
     }
 }

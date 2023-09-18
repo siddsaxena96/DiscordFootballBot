@@ -12,10 +12,10 @@ using System.Text;
 namespace DiscordBot
 {
     public class BotController
-    {        
-        public static DiscordClient _client { get; private set; }        
-        public CommandsNextExtension _commands { get; private set; }        
-        
+    {
+        public static DiscordClient _client { get; private set; }
+        public CommandsNextExtension _commands { get; private set; }
+
         private static Configuration _configuration;
         public static Configuration Configuration => _configuration;
 
@@ -54,10 +54,10 @@ namespace DiscordBot
             _commands.RegisterCommands<Commands>();
             BotCommandLogic.Init();
             var slashCommandsConfig = _client.UseSlashCommands();
-            slashCommandsConfig.RegisterCommands<SlashCommands>(_configuration.ServerId);            
+            slashCommandsConfig.RegisterCommands<SlashCommands>(_configuration.ServerId);
             slashCommandsConfig.AutocompleteErrored += AutoCompleteErr;
             slashCommandsConfig.SlashCommandErrored += SlashErr;
-            await _client.ConnectAsync();            
+            await _client.ConnectAsync();
         }
 
         private Task SlashErr(SlashCommandsExtension sender, SlashCommandErrorEventArgs args)
@@ -68,7 +68,7 @@ namespace DiscordBot
             throw new Exception();
         }
         private Task AutoCompleteErr(SlashCommandsExtension sender, AutocompleteErrorEventArgs args)
-        {           
+        {
             Console.WriteLine(args.Exception);
             Console.WriteLine(args.Context.OptionValue);
             throw new Exception();

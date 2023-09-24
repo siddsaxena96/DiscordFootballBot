@@ -116,7 +116,7 @@ namespace DiscordBot
                 DiscordEmbedBuilder embedMessage = new()
                 {
                     Title = $"{home_team} VS {away_team}",
-                    Description = $"{competition}\n\t{time}\n"
+                    Description = $"{competition}\n\t{date}\n\t{time}\n"
                 };
                 matchReminders.Add(embedMessage);
             }
@@ -323,7 +323,7 @@ namespace DiscordBot
         public static void ClearTeamStatsCache()
         {
         }
-        
+
         private static void CreateTable(List<List<string>> tableData, List<string> stringsToSendBack, int charLim, string header = "")
         {
             string tableString = string.IsNullOrEmpty(header) ? "" : header;

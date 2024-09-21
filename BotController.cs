@@ -28,18 +28,7 @@ namespace BaichungBotia
             _configuration = JsonConvert.DeserializeObject<Configuration>(json);
 
             DiscordClientBuilder builder = DiscordClientBuilder.CreateDefault(_configuration.Token, DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents);
-
-            builder.ConfigureEventHandlers
-            (
-                b => b.HandleMessageCreated(async (s, e) =>
-                {
-                    if (e.Message.Content.ToLower().StartsWith("ping"))
-                    {
-                        await e.Message.RespondAsync("pong!");
-                    }
-                })
-            );
-
+            
             builder.UseCommands(
                 // we register our commands here      
                 extension =>
@@ -63,5 +52,5 @@ namespace BaichungBotia
 public class PingCommand
 {
     [Command("ping")]
-    public static ValueTask ExecuteAsync(CommandContext context) => context.RespondAsync($"Pong! Latency is {context.Client.GetConnectionLatency(BotController.Configuration.ServerId)}ms.");
+    public static ValueTask ExecuteAsync(CommandContext context) => context.RespondAsync($"SIUUUUU! Latency is - {context.Client.GetConnectionLatency(BotController.Configuration.ServerId)}ms.");
 }

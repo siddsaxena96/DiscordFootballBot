@@ -28,29 +28,39 @@ namespace BaichungBotia
             _configuration = JsonConvert.DeserializeObject<Configuration>(json);
 
             DiscordClientBuilder builder = DiscordClientBuilder.CreateDefault(_configuration.Token, DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents);
-            
+
             builder.UseCommands(
                 // we register our commands here      
                 extension =>
                 {
-                    extension.AddCommands([typeof(PingCommand), typeof(AdminCommands), typeof(SquadCommands), typeof(StatsCommands), typeof(SubscriptionCommands), typeof(TeamScheduleCommands)]);
+                    extension.AddCommands([typeof(AdminCommands), typeof(SquadCommands), typeof(StatsCommands), typeof(SubscriptionCommands), typeof(TeamScheduleCommands)]);
+
                 },
                 new CommandsConfiguration()
                 {
                     DebugGuildId = _configuration.ServerId,
                     // The default value, however it's shown here for clarity
-                    RegisterDefaultCommandProcessors = true
+                    RegisterDefaultCommandProcessors = true,
+
                 }
             );
-
+            builder.ConfigureEventHandlers(
+                b => b.HandleMessageCreated(async (s, e) =>
+                {
+                    if (!e.Author.IsBot && e.Message.MentionedUsers.Contains(s.CurrentUser))
+                    {
+                        await e.Message.RespondAsync($"SIUUUUU! Latency is - {Client.GetConnectionLatency(Configuration.ServerId)}ms.");
+                    }
+                })
+                // .HandleGuildMemberAdded((s, e) =>
+                // {
+                //     // non-asynchronous code here
+                //     return Task.CompletedTask;
+                // })
+            );
             _client = builder.Build();
             DiscordActivity status = new("The Footy", DiscordActivityType.Playing);
             await _client.ConnectAsync(status, DiscordUserStatus.Online);
         }
     }
-}
-public class PingCommand
-{
-    [Command("ping")]
-    public static ValueTask ExecuteAsync(CommandContext context) => context.RespondAsync($"SIUUUUU! Latency is - {context.Client.GetConnectionLatency(BotController.Configuration.ServerId)}ms.");
 }

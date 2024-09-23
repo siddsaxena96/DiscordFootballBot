@@ -13,7 +13,7 @@ namespace BaichungBotia
         private static List<SubscriptionDetails> _subscriptions = new(5);
         private static List<List<string>> _tableData = new(5);
         private static List<string> _stringList = new(5);
-        private static string subscriptionFileLocation = "./subscription.json";
+        private static string subscriptionFileLocation = "subscription.json";
         private static HttpClient _httpClient;
 
         public static void Init()

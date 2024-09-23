@@ -48,6 +48,8 @@ namespace BaichungBotia
             using StreamReader sr = new(fs);
             string jsonString = await sr.ReadToEndAsync();
             Console.WriteLine(jsonString + "\n\n");
+            Console.WriteLine(jsonString == null);
+            Console.WriteLine(jsonString.Length);
             if (!string.IsNullOrEmpty(jsonString))
             {
                 subscriptions.AddRange(JsonConvert.DeserializeObject<List<SubscriptionDetails>>(jsonString));

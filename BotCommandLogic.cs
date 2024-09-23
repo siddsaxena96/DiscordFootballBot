@@ -46,10 +46,7 @@ namespace BaichungBotia
 
             using FileStream fs = new(subscriptionFileLocation, FileMode.Open);
             using StreamReader sr = new(fs);
-            string jsonString = await sr.ReadToEndAsync();
-            Console.WriteLine(jsonString + "\n\n");
-            Console.WriteLine(jsonString == null);
-            Console.WriteLine(jsonString.Length);
+            string jsonString = await sr.ReadToEndAsync();            
             if (!string.IsNullOrEmpty(jsonString))
             {
                 subscriptions.AddRange(JsonConvert.DeserializeObject<List<SubscriptionDetails>>(jsonString));
@@ -306,8 +303,7 @@ namespace BaichungBotia
 
         public static async Task<string> GetTeamTransferData(string teamId, List<string> responseStrings)
         {
-            var teamTransferUrl = BotController.Configuration.baseURL + BotController.Configuration.transferDataURL.Replace("***", teamId);
-            Console.WriteLine(teamTransferUrl);
+            var teamTransferUrl = BotController.Configuration.baseURL + BotController.Configuration.transferDataURL.Replace("***", teamId);            
             var htmlDocument = await GetHtmlDocument(teamTransferUrl);
             if (htmlDocument == null) return "Sorry, I couldn't fetch the transfers :(";
 

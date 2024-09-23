@@ -27,7 +27,7 @@ namespace BaichungBotia
         [Command("ShowUpcoming")]
         [Description("Show next scheduled fixtures for a subscribed team")]
         public async Task ShowUpcoming(SlashCommandContext interactionContext,
-            [SlashAutoCompleteProvider<FetchCompetitionTeamsAutoComplete>][Parameter("TeamName")][Description("Select Team")] string teamId,
+            [SlashAutoCompleteProvider<FetchSubscribedTeamsAutoComplete>][Parameter("TeamName")][Description("Select Team")] string teamId,
             [Parameter("NumMatches")][Description("Optional, no value will show next match")] long numMatches = 1)
         {
             string response = await GetFixturesResponseForTeam(teamId, numMatches, _responseStrings, true);

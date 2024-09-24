@@ -1,11 +1,12 @@
 using System.Globalization;
+using DSharpPlus.Commands.Processors.SlashCommands;
 using DSharpPlus.Entities;
 
 namespace BaichungBotia
 {
     public static class HelperFunctions
     {
-        private static List<DiscordEmbed> _matchReminders = new(10);        
+        private static List<DiscordEmbed> _matchReminders = new(10);
         public async static Task RoutineCheckUpcomingMatches()
         {
             _matchReminders.Clear();
@@ -58,6 +59,15 @@ namespace BaichungBotia
         {
             var timeZoneDateTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
             return DateTime.UtcNow.Year + (parsedMonth.Month <= timeZoneDateTime.Month && day < timeZoneDateTime.Day ? 1 : 0);
+        }
+
+        public static async Task HandleResponse(SlashCommandContext interactionContext, string response, IReadOnlyList<string> responseStrings)
+        {
+            await interactionContext.EditResponseAsync(response);
+            foreach (var responseString in responseStrings)
+            {
+                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
+            }
         }
     }
 }

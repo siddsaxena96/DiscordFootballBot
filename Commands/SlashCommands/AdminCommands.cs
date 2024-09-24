@@ -11,6 +11,7 @@ namespace BaichungBotia
         [Description("!!OBSOLETE!!! - Clears the cached player stats ( requires Admin User)")]
         public async Task ClearPlayerStatsCache(SlashCommandContext interactionContext)
         {
+            await interactionContext.DeferResponseAsync();
             string response = "";
             if (BotController.Configuration.AdminUsers.Contains(interactionContext.User.Id))
             {
@@ -21,7 +22,7 @@ namespace BaichungBotia
             {
                 response = "Sorry, only admins can use this command";
             }
-            await interactionContext.RespondAsync(response);
+            await interactionContext.EditResponseAsync(response);
 
         }
 
@@ -29,6 +30,7 @@ namespace BaichungBotia
         [Description("Reloads team data for all leagues ( requires Admin User)")]
         public async Task ResetLeagueTeamDataCache(SlashCommandContext interactionContext)
         {
+            await interactionContext.DeferResponseAsync();
             string response = "";
             if (BotController.Configuration.AdminUsers.Contains(interactionContext.User.Id))
             {
@@ -39,13 +41,14 @@ namespace BaichungBotia
             {
                 response = "Sorry, only admins can use this command";
             }
-            await interactionContext.RespondAsync(response);
+            await interactionContext.EditResponseAsync(response);
         }
 
-        [Command("Force_Update_MatchReminder")]
+        [Command("ForceUpdateMatchReminder")]
         [Description("Force botia to refresh match reminder ( requires Admin User)")]
         public async Task ForceUpdateMatchReminder(SlashCommandContext interactionContext)
         {
+            await interactionContext.DeferResponseAsync();
             string response = "";
             if (BotController.Configuration.AdminUsers.Contains(interactionContext.User.Id))
             {
@@ -56,7 +59,7 @@ namespace BaichungBotia
             {
                 response = "Sorry, only admins can use this command";
             }
-            await interactionContext.RespondAsync(response);
+            await interactionContext.EditResponseAsync(response);
         }
     }
 }

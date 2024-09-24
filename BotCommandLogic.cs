@@ -46,7 +46,7 @@ namespace BaichungBotia
 
             using FileStream fs = new(subscriptionFileLocation, FileMode.Open);
             using StreamReader sr = new(fs);
-            string jsonString = await sr.ReadToEndAsync();            
+            string jsonString = await sr.ReadToEndAsync();
             if (!string.IsNullOrEmpty(jsonString))
             {
                 subscriptions.AddRange(JsonConvert.DeserializeObject<List<SubscriptionDetails>>(jsonString));
@@ -240,7 +240,9 @@ namespace BaichungBotia
             var leagueStats = BotController.Configuration.baseURL + BotController.Configuration.leagueStatsURL.Replace("***", competitionCode);
             var htmlDocument = await GetHtmlDocument(leagueStats);
             if (htmlDocument == null) return "Sorry, I couldn't fetch the stats  :(";
-
+            
+            string statsHeader = htmlDocument.DocumentNode.SelectSingleNode("//h1[@class='headline headline__h1 dib']").InnerText.Trim();
+            
             string tableHeader = statType == 0 ? "Top Scorers :\n" : "Top Assists :\n";
             string selectedStat = statType == 0 ? "top-score-table" : "top-assists-table";
             HtmlNode selectedTable = htmlDocument.DocumentNode.SelectSingleNode($"//div[@class='ResponsiveTable {selectedStat}']//table[@class='Table']");
@@ -251,7 +253,7 @@ namespace BaichungBotia
 
             PopulateLeagueStatTable(responseStrings, selectedTable, tableHeader);
 
-            return "League Stats :";
+            return $"```{statsHeader}\n```";
             static void PopulateLeagueStatTable(List<string> responseStrings, HtmlNode selectedTable, string tableHeader)
             {
                 if (selectedTable == null) return;
@@ -298,12 +300,12 @@ namespace BaichungBotia
                 _tableData.Add([date, team1, score, team2, result, competition]);
             }
             CreateTable(_tableData, responseStrings, 1800);
-            return response;
+            return $"```{response}\n```";
         }
 
         public static async Task<string> GetTeamTransferData(string teamId, List<string> responseStrings)
         {
-            var teamTransferUrl = BotController.Configuration.baseURL + BotController.Configuration.transferDataURL.Replace("***", teamId);            
+            var teamTransferUrl = BotController.Configuration.baseURL + BotController.Configuration.transferDataURL.Replace("***", teamId);
             var htmlDocument = await GetHtmlDocument(teamTransferUrl);
             if (htmlDocument == null) return "Sorry, I couldn't fetch the transfers :(";
 
@@ -335,7 +337,7 @@ namespace BaichungBotia
                 CreateTable(_tableData, responseStrings, 1800, transferInTable ? "Transfers IN:\n" : "Transfers OUT:\n");
                 transferInTable = false;
             }
-            return response;
+            return $"```{response}\n```";
         }
         public async static Task<bool> RefreshTeamsCache()
         {

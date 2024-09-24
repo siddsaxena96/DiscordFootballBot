@@ -13,6 +13,7 @@ namespace BaichungBotia
             [SlashChoiceProvider<LeagueOptionsProvider>][Parameter("LeagueName")][Description("Select League")] string selectedLeague,
             [SlashAutoCompleteProvider<FetchCompetitionTeamsAutoComplete>][Parameter("TeamName")][Description("Select Team")] string teamId)
         {
+            await interactionContext.DeferResponseAsync();
             string response;
             if (teamId == "-1")
             {

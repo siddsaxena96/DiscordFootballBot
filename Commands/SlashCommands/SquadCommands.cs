@@ -15,13 +15,10 @@ namespace BaichungBotia
                 [SlashChoiceProvider<LeagueOptionsProvider>][Parameter("LeagueName")][Description("Select League")] string selectedLeague,
                 [SlashAutoCompleteProvider<FetchCompetitionTeamsAutoComplete>][Parameter("TeamName")][Description("Select Team")] string teamId)
         {
+            await interactionContext.DeferResponseAsync();
             _responseStrings.Clear();
             string response = await BotCommandLogic.GetTeamTransferData(teamId, _responseStrings);
-            await interactionContext.RespondAsync(response);
-            foreach (var responseString in _responseStrings)
-            {
-                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
-            }
+            await HelperFunctions.HandleResponse(interactionContext, response, _responseStrings);
         }
     }
 }

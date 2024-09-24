@@ -16,12 +16,9 @@ namespace BaichungBotia
                 [SlashAutoCompleteProvider<FetchCompetitionTeamsAutoComplete>][Parameter("TeamName")][Description("Select Team")] string teamId,
                 [Parameter("NumMatches")][Description("Optional, no value will show full schedule")] long numMatches = -1)
         {
+            await interactionContext.DeferResponseAsync();
             string response = await GetFixturesResponseForTeam(teamId, numMatches, _responseStrings);
-            await interactionContext.RespondAsync(response);
-            foreach (var responseString in _responseStrings)
-            {
-                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
-            }
+            await HelperFunctions.HandleResponse(interactionContext, response, _responseStrings);
         }
 
         [Command("ShowUpcoming")]
@@ -30,13 +27,11 @@ namespace BaichungBotia
             [SlashAutoCompleteProvider<FetchSubscribedTeamsAutoComplete>][Parameter("TeamName")][Description("Select Team")] string teamId,
             [Parameter("NumMatches")][Description("Optional, no value will show next match")] long numMatches = 1)
         {
+            await interactionContext.DeferResponseAsync();
             string response = await GetFixturesResponseForTeam(teamId, numMatches, _responseStrings, true);
-            await interactionContext.RespondAsync(response);
-            foreach (var responseString in _responseStrings)
-            {
-                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
-            }
+            await HelperFunctions.HandleResponse(interactionContext, response, _responseStrings);
         }
+        
         private async Task<string> GetFixturesResponseForTeam(string teamId, long numMatches, List<string> responseStrings, bool fromSubscriptions = false)
         {
             if (teamId == "-1")

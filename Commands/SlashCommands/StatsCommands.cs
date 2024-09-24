@@ -14,13 +14,10 @@ namespace BaichungBotia
         public async Task ShowStandings(SlashCommandContext interactionContext,
             [SlashChoiceProvider<LeagueOptionsProvider>][Parameter("LeagueName")][Description("Select League")] string selectedLeague)
         {
+            await interactionContext.DeferResponseAsync();
             _responseStrings.Clear();
             string response = await BotCommandLogic.GetStandingsForCompetition(selectedLeague.ToString(), _responseStrings);
-            await interactionContext.RespondAsync(response);
-            foreach (var responseString in _responseStrings)
-            {
-                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
-            }
+            await HelperFunctions.HandleResponse(interactionContext, response, _responseStrings);
         }
 
         [Command("ShowLeagueStats")]
@@ -28,14 +25,11 @@ namespace BaichungBotia
         public async Task ShowLeagueStats(SlashCommandContext interactionContext,
             [SlashChoiceProvider<LeagueOptionsProvider>][Parameter("LeagueName")][Description("Select League")] string selectedLeague)
         {
+            await interactionContext.DeferResponseAsync();
             _responseStrings.Clear();
             string response = await BotCommandLogic.GetLeagueStatsForCompetition(selectedLeague.ToString(), _responseStrings, 0);
             response = await BotCommandLogic.GetLeagueStatsForCompetition(selectedLeague.ToString(), _responseStrings, 1);
-            await interactionContext.RespondAsync(response);
-            foreach (var responseString in _responseStrings)
-            {
-                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
-            }
+            await HelperFunctions.HandleResponse(interactionContext, response, _responseStrings);
         }
 
         [Command("ShowPastResults")]
@@ -44,13 +38,10 @@ namespace BaichungBotia
                 [SlashChoiceProvider<LeagueOptionsProvider>][Parameter("LeagueName")][Description("Select League")] string selectedLeague,
                 [SlashAutoCompleteProvider<FetchCompetitionTeamsAutoComplete>][Parameter("TeamName")][Description("Select Team")] string teamId)
         {
+            await interactionContext.DeferResponseAsync();
             _responseStrings.Clear();
             string response = await BotCommandLogic.GetTeamPastResults(teamId, _responseStrings);
-            await interactionContext.RespondAsync(response);
-            foreach (var responseString in _responseStrings)
-            {
-                await interactionContext.Channel.SendMessageAsync($"```\n{responseString}```");
-            }
+            await HelperFunctions.HandleResponse(interactionContext, response, _responseStrings);
         }
     }
 }

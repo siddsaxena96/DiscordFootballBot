@@ -91,7 +91,7 @@ namespace BaichungBotia
             async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
             {
                 var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", sub.Team.teamId);
-                var htmlDocument = await GetHtmlDocument(fixturesUrl);
+                var htmlDocument = await GetHtmlDocument("fixturesUrl");
                 if (htmlDocument == null) return;
 
                 var row = htmlDocument.DocumentNode.SelectSingleNode("//tbody[@class='Table__TBODY']//tr");
@@ -240,9 +240,9 @@ namespace BaichungBotia
             var leagueStats = BotController.Configuration.baseURL + BotController.Configuration.leagueStatsURL.Replace("***", competitionCode);
             var htmlDocument = await GetHtmlDocument(leagueStats);
             if (htmlDocument == null) return "Sorry, I couldn't fetch the stats  :(";
-            
+
             string statsHeader = htmlDocument.DocumentNode.SelectSingleNode("//h1[@class='headline headline__h1 dib']").InnerText.Trim();
-            
+
             string tableHeader = statType == 0 ? "Top Scorers :\n" : "Top Assists :\n";
             string selectedStat = statType == 0 ? "top-score-table" : "top-assists-table";
             HtmlNode selectedTable = htmlDocument.DocumentNode.SelectSingleNode($"//div[@class='ResponsiveTable {selectedStat}']//table[@class='Table']");
@@ -424,10 +424,44 @@ namespace BaichungBotia
         }
         private async static Task<HtmlDocument> GetHtmlDocument(string url)
         {
-            var html = await _httpClient.GetStringAsync(url);
-            var htmlDocument = new HtmlDocument();
-            htmlDocument.LoadHtml(html);
-            return htmlDocument;
+            int maxRetries = 3;
+            int delay = 1000; // 2 seconds delay
+
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    var response = await _httpClient.GetAsync(url);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var html = await response.Content.ReadAsStringAsync();
+                        var htmlDocument = new HtmlDocument();
+                        htmlDocument.LoadHtml(html);
+                        return htmlDocument;
+                    }
+                    else
+                    {
+                        if (i == maxRetries - 1)
+                        {
+                            return null;
+                        }
+                        throw new HttpRequestException($"Service unavailable after {maxRetries} attempts. - {response.StatusCode} - {response.Content}");
+                    }
+                }
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine(ex);
+                    await Task.Delay(delay);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Console.WriteLine(ex);
+                    await Task.Delay(delay);
+                }
+            }
+
+            return null;
         }
     }
 }

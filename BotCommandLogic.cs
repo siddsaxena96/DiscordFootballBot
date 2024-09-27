@@ -91,7 +91,7 @@ namespace BaichungBotia
             async static Task CheckForUpcomingMatch(SubscriptionDetails sub, string currentDate, string nextDateString, List<DiscordEmbed> matchReminders)
             {
                 var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", sub.Team.teamId);
-                var htmlDocument = await GetHtmlDocument("fixturesUrl");
+                var htmlDocument = await GetHtmlDocument(fixturesUrl);
                 if (htmlDocument == null) return;
 
                 var row = htmlDocument.DocumentNode.SelectSingleNode("//tbody[@class='Table__TBODY']//tr");
@@ -451,12 +451,16 @@ namespace BaichungBotia
                 }
                 catch (HttpRequestException ex)
                 {
+                    DiscordChannel channel = await BotController.Client.GetChannelAsync(BotController.Configuration.FootyChannelId);
+                    await channel.SendMessageAsync("Something went wrong boss, please check :(");
                     Console.WriteLine(ex);
                     await Task.Delay(delay);
                 }
                 catch (InvalidOperationException ex)
                 {
                     Console.WriteLine(ex);
+                    DiscordChannel channel = await BotController.Client.GetChannelAsync(BotController.Configuration.FootyChannelId);
+                    await channel.SendMessageAsync("Something went wrong boss, please check :(");
                     await Task.Delay(delay);
                 }
             }

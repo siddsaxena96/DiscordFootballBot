@@ -442,6 +442,7 @@ namespace BaichungBotia
                         var html = await response.Content.ReadAsStringAsync();
                         var htmlDocument = new HtmlDocument();
                         htmlDocument.LoadHtml(html);
+                        Console.WriteLine(htmlDocument.DocumentNode.OuterHtml);
                         return htmlDocument;
                     }
                     else

@@ -214,6 +214,8 @@ namespace BaichungBotia
             if (htmlDocument == null) return "Sorry, I couldn't fetch the fixtures  :(";
 
             var rows = htmlDocument.DocumentNode.SelectNodes("//tbody[@class='Table__TBODY']//tr");
+            Console.WriteLine(rows==null);
+            Console.WriteLine(rows.Count);
             if (rows == null || rows.Count == 0) return "Sorry, I couldn't fetch the fixtures  :(";
             _tableData.Clear();
             _tableData.Add(["DATE", "HOME", "V", "AWAY", "TIME", "COMPETITION"]);

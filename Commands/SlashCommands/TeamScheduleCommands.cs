@@ -34,6 +34,7 @@ namespace BaichungBotia
         
         private async Task<string> GetFixturesResponseForTeam(string teamId, long numMatches, List<string> responseStrings, bool fromSubscriptions = false)
         {
+            Console.WriteLine($"{teamId} - {numMatches}");
             if (teamId == "-1")
             {
                 return fromSubscriptions ? "Sorry, it seems you have no subscriptions" : "Sorry, I could not fetch teams from the competition :(";

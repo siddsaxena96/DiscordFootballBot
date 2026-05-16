@@ -208,7 +208,9 @@ namespace BaichungBotia
         public async static Task<string> GetTeamFixtures(string extractedId, List<string> responseStrings, int upUntil = -1)
         {
             var fixturesUrl = BotController.Configuration.baseURL + BotController.Configuration.fixturesURL.Replace("***", extractedId);
+            Console.WriteLine(fixturesUrl);
             var htmlDocument = await GetHtmlDocument(fixturesUrl);
+            Console.WriteLine(htmlDocument==null);
             if (htmlDocument == null) return "Sorry, I couldn't fetch the fixtures  :(";
 
             var rows = htmlDocument.DocumentNode.SelectNodes("//tbody[@class='Table__TBODY']//tr");
